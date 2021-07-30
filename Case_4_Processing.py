@@ -10,8 +10,11 @@ def findLandMarkFeature(img):
     morph_closed, gray = bottom_thresholding(img)
     largest_connected = get_largest_connected_comp(morph_closed)
     bottom_contour, img = findBottomContour(largest_connected)
+    plt.figure(1)
+    plt.plot(bottom_contour[:, 1])
+
     d = find_y_derivative(50, bottom_contour)
-    point = findPointOfInterest(d)
+    point = findPointOfInterest(d, bottom_contour[:,1])
     point_location = bottom_contour[point, :]
     template = crop_image_for_feature(point_location, gray)
     cv2.imshow("Template to track", template)
@@ -129,17 +132,39 @@ def findBottomContour(binary_image, imshow=False):
 def find_y_derivative(interval, bottom_curve):
     l = bottom_curve.shape[0]
     derivative_list = []
+    deri_smooth_list = []
 
     for i in range(l - interval):
         front = bottom_curve[i, 1]
         end = bottom_curve[i + interval, 1]
+        deri_smppth = smooth_derivative(bottom_curve[i:i + 50, 1])
+        deri_smooth_list.append(deri_smppth)
         deri = (end - front) / interval
         derivative_list.append(deri)
-
-    # plt.plot(derivative_list)
-    # plt.show()
+    plt.figure(2)
+    plt.plot(derivative_list)
+    plt.plot(deri_smooth_list)
+    plt.show()
 
     return derivative_list
+
+
+def smooth_derivative(point_interval, ratio_to_count=0.5):
+    l = len(point_interval)
+    stop_index = int(ratio_to_count * l)
+
+    slope_list = []
+    # for i in range(l - stop_index):
+    #     diff = point_interval[-1] - point_interval[i]
+    #     slope = diff / (l - i - 1)
+    #     slope_list.append(slope)
+
+    # Low Pass Filter
+    for i in range(40):
+        slope = point_interval[l - i - 1] - point_interval[l - i - 2]
+        slope_list.append(slope)
+
+    return np.average(slope_list)
 
 
 def find_y_second_derivative(derivative_list, interval):
@@ -170,9 +195,12 @@ def analyze_window(window):
     return avg, avg_slope
 
 
-def findPointOfInterest(points_list, window_size=50):
+def findPointOfInterest(points_list, bottom_contour, window_size=50):
     """
     Front and back windows needs to be extracted and compared for slopes
+    Front slope need to be smaller than 0, back slope needs to be greater than 0
+    Both front and back window need to have greater average value than current
+    :param bottom_contour:
     :param points_list:
     :param window_size:
     :return:
@@ -183,17 +211,22 @@ def findPointOfInterest(points_list, window_size=50):
     for i in range(l - 2 * window_size):
 
         curr_index = i + window_size
-        front_window = points_list[i:curr_index]
-        back_window = points_list[(curr_index + 1):(curr_index + 1 + window_size)]
-        front_avg, front_slope = analyze_window(front_window)
-        back_avg, back_slope = analyze_window(back_window)
+        front_window = bottom_contour[i:curr_index]
+        back_window = bottom_contour[(curr_index + 1):(curr_index + 1 + window_size)]
+        front_slope = (front_window[-1] - front_window[1])/window_size
+        back_slope = (back_window[-1] - back_window[1])/window_size
+        front_avg = np.average(front_window)
+        back_avg = np.average(back_window)
 
-        curr_stats = [front_avg, front_slope, points_list[curr_index], back_avg, back_slope]
+        curr_stats = [front_avg, front_slope, bottom_contour[curr_index], back_avg, back_slope]
         total_stats.append(curr_stats)
 
-        if front_slope > 0 and back_slope < 0 and points_list[curr_index] > front_avg and points_list[
-            curr_index] > back_avg:
-            return curr_index
+        if (curr_index == 290):
+            print()
+
+        if front_slope < 0 and back_slope > 0 and bottom_contour[curr_index] < front_avg and bottom_contour[
+            curr_index] < back_avg:
+            return int(curr_index + window_size / 2)
 
 
 def top_half_sesgmentation(img):
