@@ -28,14 +28,22 @@ if __name__ == "__main__":
             bottom_annotation = frame[965:, :, :]
             frame = frame[140:965, :, :]
 
+            try:
+                spine_contour = Case_4_Processing.get_spine_bottom_contour(frame, True)
+            except:
+                spine_contour = Case_4_Processing.get_spine_bottom_contour(frame, True, False)
             top_binary = Case_4_Processing.top_half_sesgmentation(frame)
             top_binary_bottom_contour = Case_4_Processing.findBottomContour(top_binary, True)
+            area = int(Case_4_Processing.find_area_enclosed(top_binary_bottom_contour, spine_contour, frame))
+            print(area)
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             h = int(frame.shape[0] / 3)
             bottom_half = frame[h:, :, :]
             top_left, bottom_right, center, max_val = Case_4_Processing.match_template(bottom_half, template)
             if max_val < 0.6:
                 cv2.putText(frame, "Unreliable Tracking", (200, 600), cv2.FONT_HERSHEY_DUPLEX, 2, (255, 0, 255), 3)
+
+            cv2.putText(frame, "{:.2e}".format(area), (450, 50), cv2.FONT_HERSHEY_DUPLEX, 1, (255, 0, 255), 2)
             top_left = (top_left[0], top_left[1] + h)
             bottom_right = (bottom_right[0], bottom_right[1] + h)
             center = (center[0], center[1] + h)

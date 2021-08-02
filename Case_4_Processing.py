@@ -5,17 +5,33 @@ import matplotlib.pyplot as plt
 TEMPLATE_SIZE = 150
 TOP_IMG_CROP = None
 BOTTOM_DETECTION_RATIO = 2
+ASPECT_RATIO = 2
 
 
-def findLandMarkFeature(img):
+def get_spine_bottom_contour(img, absolute_position=False, connect_component=True):
     original_img = img.copy()
     morph_closed = bottom_thresholding(img)
     largest_connected = get_largest_connected_comp(morph_closed)
     bottom_contour = findBottomContour(largest_connected)
     good_contour = check_landmark_bottom_contour(bottom_contour, original_img)
 
-    if not good_contour:
+    if not good_contour and connect_component:
         bottom_contour = connect_broken_contour(bottom_contour, morph_closed)
+
+    if absolute_position:
+        r, _ = bottom_contour.shape
+        a = np.zeros((r, 1))
+        b = np.ones((r, 1)) * img.shape[0] / BOTTOM_DETECTION_RATIO
+        b = np.array(b, dtype=np.uint32)
+        to_add = np.hstack((a, b))
+        bottom_contour = bottom_contour + to_add
+
+    return bottom_contour.astype(int)
+
+
+def findLandMarkFeature(img):
+    original_img = img.copy()
+    bottom_contour = get_spine_bottom_contour(img)
     plt.figure(1)
     plt.plot(bottom_contour[:, 1])
 
@@ -30,6 +46,13 @@ def findLandMarkFeature(img):
     # cv2.imshow("Location", interesting_img)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
+
+
+def bottom_half_segmentation(img):
+    img_copy = img.copy()
+    gray = cv2.cvtColor(img_copy, cv2.COLOR_BGR2GRAY)
+    h = round(gray.shape[0] / BOTTOM_DETECTION_RATIO)
+    gray = gray[h:]
 
 
 def check_landmark_bottom_contour(bottom_contour, original_img):
@@ -68,7 +91,6 @@ def connect_broken_contour(largest_cc_contour, bottom_binary_image):
     return to_return
 
 
-
 def annotate_frame(frame, corners):
     color = (0, 255, 0)
     thickness = 3;
@@ -92,8 +114,8 @@ def crop_image_for_feature(point, img, template_y=TEMPLATE_SIZE):
     y_center = point[1] + y_offset
     x_center = point[0]
 
-    y_min = int(y_center - template_y / 2)
-    y_max = int(y_center + template_y / 2)
+    y_min = int(y_center - template_y / ASPECT_RATIO)
+    y_max = int(y_center + template_y / ASPECT_RATIO)
     x_min = x_center - template_y
     x_max = x_center + template_y
 
@@ -302,3 +324,15 @@ def findDistance(center, bottom_contour, height_offset=0):
     distance = center[1] - avg_y
 
     return distance
+
+
+def find_area_enclosed(top_contour, bottom_contour, original_image):
+    img = original_image.copy()
+    encirclement = np.concatenate((np.flip(top_contour, 0), bottom_contour))
+    cv2.drawContours(original_image, [encirclement], -1, (0, 255, 225), 1)
+    gray_img = cv2.cvtColor(original_image.copy(), cv2.COLOR_BGR2GRAY)
+    zeros = np.zeros(gray_img.shape)
+    cv2.drawContours(zeros, [encirclement], -1, 255, -1)
+    # cv2.imshow('Lines', zeros)
+
+    return np.sum(zeros)
