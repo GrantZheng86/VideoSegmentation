@@ -11,12 +11,15 @@ def findLandMarkFeature(img):
     original_img = img.copy()
     morph_closed = bottom_thresholding(img)
     largest_connected = get_largest_connected_comp(morph_closed)
-    bottom_contour, img = findBottomContour(largest_connected)
+    bottom_contour = findBottomContour(largest_connected)
+    good_contour = check_landmark_bottom_contour(bottom_contour, original_img)
+
+    if not good_contour:
+        bottom_contour = connect_broken_contour(bottom_contour, morph_closed)
     plt.figure(1)
     plt.plot(bottom_contour[:, 1])
 
-    d = find_y_derivative(50, bottom_contour)
-    point = findPointOfInterest(d, bottom_contour[:,1])
+    point = findPointOfInterest(bottom_contour[:, 1])
     point_location = bottom_contour[point, :]
     template = crop_image_for_feature(point_location, original_img)
     cv2.imshow("Template to track", template)
@@ -27,6 +30,43 @@ def findLandMarkFeature(img):
     # cv2.imshow("Location", interesting_img)
     # cv2.waitKey(0)
     # cv2.destroyAllWindows()
+
+
+def check_landmark_bottom_contour(bottom_contour, original_img):
+    """
+    Checks if there's breakage for the bottom curve. If the contour begins after 1/3 of the width or ends before 1/3 of
+    the width, it is broken.
+    :param bottom_contour:
+    :param original_img:
+    :return: True if not broken, False otherwise
+    """
+    x_size = original_img.shape[1]
+    x_start_lim = x_size / 3
+    x_end_lim = 2 * x_start_lim
+
+    x_init = bottom_contour[0][0]
+    x_end = bottom_contour[-1][0]
+
+    if x_init > x_start_lim or x_end < x_end_lim:
+        return False
+    else:
+        return True
+
+
+def connect_broken_contour(largest_cc_contour, bottom_binary_image):
+    second_largest = get_largest_connected_comp(bottom_binary_image, -3)  # -3 indicates the 2nd largest component
+    second_bottom_contour = findBottomContour(second_largest)
+
+    second_x_start = second_bottom_contour[0][0]
+    first_x_start = largest_cc_contour[0][0]
+
+    if second_x_start > first_x_start:
+        to_return = np.concatenate((largest_cc_contour, second_bottom_contour))
+    else:
+        to_return = np.concatenate((second_bottom_contour, largest_cc_contour))
+
+    return to_return
+
 
 
 def annotate_frame(frame, corners):
@@ -48,7 +88,7 @@ def match_template(img, template):
 
 
 def crop_image_for_feature(point, img, template_y=TEMPLATE_SIZE):
-    y_offset = img.shape[0]/2
+    y_offset = img.shape[0] / 2
     y_center = point[1] + y_offset
     x_center = point[0]
 
@@ -80,12 +120,12 @@ def morph_operation(img):
     return closing
 
 
-def get_largest_connected_comp(binary_img):
+def get_largest_connected_comp(binary_img, component_number=-2):
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_img, connectivity=8)
     stats_copy = stats.copy()
     areas = stats_copy[:, -1]
     areas.sort()
-    largest_area = areas[-2]
+    largest_area = areas[component_number]
 
     location = np.where(stats == largest_area)
     label = location[0][0]
@@ -130,7 +170,7 @@ def findBottomContour(binary_image, imshow=True):
         cv2.imshow("Contours", color_image)
         # cv2.waitKey(0)
         # cv2.destroyAllWindows()
-    return bottom, color_image
+    return bottom
 
 
 def find_y_derivative(interval, bottom_curve):
@@ -199,7 +239,7 @@ def analyze_window(window):
     return avg, avg_slope
 
 
-def findPointOfInterest(points_list, bottom_contour, window_size=50):
+def findPointOfInterest(bottom_contour, window_size=50):
     """
     Front and back windows needs to be extracted and compared for slopes
     Front slope need to be smaller than 0, back slope needs to be greater than 0
@@ -217,8 +257,8 @@ def findPointOfInterest(points_list, bottom_contour, window_size=50):
         curr_index = i + window_size
         front_window = bottom_contour[i:curr_index]
         back_window = bottom_contour[(curr_index + 1):(curr_index + 1 + window_size)]
-        front_slope = (front_window[-1] - front_window[1])/window_size
-        back_slope = (back_window[-1] - back_window[1])/window_size
+        front_slope = (front_window[-1] - front_window[1]) / window_size
+        back_slope = (back_window[-1] - back_window[1]) / window_size
         front_avg = np.average(front_window)
         back_avg = np.average(back_window)
 
@@ -235,15 +275,14 @@ def findPointOfInterest(points_list, bottom_contour, window_size=50):
 
 def top_half_sesgmentation(img):
     h = int(img.shape[0] / 3)
-    beginning = int(h / 5)
-    frame = img[beginning:h, :, :]
+    frame = img[0:h, :, :]
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame_array = np.array(frame)
     frame_array.flatten()
     non_zero_array = frame_array[frame_array != 0]
     thresh_value = np.percentile(non_zero_array, 60)
     _, th = cv2.threshold(frame, thresh_value, 255, cv2.THRESH_BINARY)
-    return th, beginning
+    return th
 
 
 def findDistance(center, bottom_contour, height_offset=0):
