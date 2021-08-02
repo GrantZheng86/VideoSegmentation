@@ -4,10 +4,12 @@ import matplotlib.pyplot as plt
 
 TEMPLATE_SIZE = 150
 TOP_IMG_CROP = None
+BOTTOM_DETECTION_RATIO = 2
 
 
 def findLandMarkFeature(img):
-    morph_closed, gray = bottom_thresholding(img)
+    original_img = img.copy()
+    morph_closed = bottom_thresholding(img)
     largest_connected = get_largest_connected_comp(morph_closed)
     bottom_contour, img = findBottomContour(largest_connected)
     plt.figure(1)
@@ -16,7 +18,7 @@ def findLandMarkFeature(img):
     d = find_y_derivative(50, bottom_contour)
     point = findPointOfInterest(d, bottom_contour[:,1])
     point_location = bottom_contour[point, :]
-    template = crop_image_for_feature(point_location, gray)
+    template = crop_image_for_feature(point_location, original_img)
     cv2.imshow("Template to track", template)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
@@ -46,7 +48,8 @@ def match_template(img, template):
 
 
 def crop_image_for_feature(point, img, template_y=TEMPLATE_SIZE):
-    y_center = point[1]
+    y_offset = img.shape[0]/2
+    y_center = point[1] + y_offset
     x_center = point[0]
 
     y_min = int(y_center - template_y / 2)
@@ -64,12 +67,11 @@ def crop_image_for_feature(point, img, template_y=TEMPLATE_SIZE):
 
 def bottom_thresholding(img):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    h = round(gray.shape[0] / 2)
+    h = round(gray.shape[0] / BOTTOM_DETECTION_RATIO)
     gray = gray[h:]
     _, th_otsu = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
     closed = morph_operation(th_otsu)
-    gray = cv2.cvtColor(gray, cv2.COLOR_GRAY2BGR)
-    return closed, gray
+    return closed
 
 
 def morph_operation(img):
@@ -94,7 +96,7 @@ def get_largest_connected_comp(binary_img):
     return largest_only
 
 
-def findBottomContour(binary_image, imshow=False):
+def findBottomContour(binary_image, imshow=True):
     contours, _ = cv2.findContours(binary_image, 1, 2)
 
     counter = 0
@@ -126,6 +128,8 @@ def findBottomContour(binary_image, imshow=False):
     if imshow:
         # cv2.drawContours(color_image, contours, max_contour_index , color=(0, 255, 0), thickness=5)
         cv2.imshow("Contours", color_image)
+        # cv2.waitKey(0)
+        # cv2.destroyAllWindows()
     return bottom, color_image
 
 
@@ -207,7 +211,7 @@ def findPointOfInterest(points_list, bottom_contour, window_size=50):
     """
 
     total_stats = []
-    l = len(points_list)
+    l = len(bottom_contour)
     for i in range(l - 2 * window_size):
 
         curr_index = i + window_size

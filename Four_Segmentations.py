@@ -4,7 +4,7 @@ import Case_4_Processing
 from time import sleep
 import numpy as np
 
-FILE_NAME = "Vid_1.mp4"
+FILE_NAME = "New Videos/Vid_1.mp4"
 CASE_Num = 4
 
 
@@ -19,11 +19,14 @@ if __name__ == "__main__":
         ret, frame = cap.read()
         counter += 1
 
+
         if ret and counter == 1:
+            frame = frame[140:965, :, :]
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             template = Case_4_Processing.findLandMarkFeature(frame)
 
         elif ret:
+            frame = frame[140:965, :, :]
             top_binary, height_offset = Case_4_Processing.top_half_sesgmentation(frame)
             top_binary_bottom_contour, _ = Case_4_Processing.findBottomContour(top_binary, True)
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
