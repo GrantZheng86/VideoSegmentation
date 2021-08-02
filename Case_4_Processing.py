@@ -274,7 +274,7 @@ def findPointOfInterest(bottom_contour, window_size=50):
 
 
 def top_half_sesgmentation(img):
-    h = int(img.shape[0] / 3)
+    h = int(img.shape[0] / 4)
     frame = img[0:h, :, :]
     frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     frame_array = np.array(frame)

@@ -24,7 +24,10 @@ if __name__ == "__main__":
             template = Case_4_Processing.findLandMarkFeature(frame)
 
         elif ret:
+            top_annotation = frame[0:140, :, :]
+            bottom_annotation = frame[965:, :, :]
             frame = frame[140:965, :, :]
+
             top_binary = Case_4_Processing.top_half_sesgmentation(frame)
             top_binary_bottom_contour = Case_4_Processing.findBottomContour(top_binary, True)
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
@@ -40,6 +43,7 @@ if __name__ == "__main__":
             intersect = (int(center[0]), int(center[1] - distance))
             cv2.line(frame, center, intersect, (0, 0, 255), 3)
             frame = Case_4_Processing.annotate_frame(frame, (top_left, bottom_right))
+            frame = np.vstack((top_annotation, frame, bottom_annotation))
 
             cv2.imshow("Template Matching", frame)
             videoWriter.write(frame)
