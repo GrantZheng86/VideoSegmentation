@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 
 BOTTOM_FEATURE_RATIO = 1.7
 BOTTOM_PERCENTILE = 50
+ASPECT_RATIO = 2
+TEMPLATE_HEIGHT = 150
 
 
 def extract_template(frame):
@@ -12,7 +14,7 @@ def extract_template(frame):
     bottom_half_contour = get_bottom_contour(gray)
     feature_index = detect_feature(bottom_half_contour)
 
-    feature_point = bottom_half_contour[feature_index, :, :]
+    feature_point = bottom_half_contour[feature_index, :]
     show_point(feature_point, frame)
     print()
 
@@ -104,7 +106,7 @@ def contour_reduction(largest_contour):
     bottom_half_contour = get_bottom_half(approx)
     plot_contour_trend(bottom_half_contour)
 
-    return approx
+    return bottom_half_contour
 
 
 def get_bottom_half(contour):
@@ -197,3 +199,5 @@ def average_slope(contour_window):
         slope_array.append(curr_slope)
 
     return np.average(slope_array)
+
+

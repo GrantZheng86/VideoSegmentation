@@ -1,7 +1,7 @@
 import cv2
 import Case_3_processing
 
-FILE_NAME = "New Videos/2-4.mp4"
+FILE_NAME = "New Videos/1-4.mp4"
 
 if __name__ == "__main__":
     cap = cv2.VideoCapture(FILE_NAME)
