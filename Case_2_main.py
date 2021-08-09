@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
         if ret:
             frame = frame[140:965, 0:580, :]
-            frame = Case_2_Processing.get_bottom_two_parts(frame)
+            frame = Case_2_Processing.get_bottom_two_parts(frame, counter)
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Frame", frame)
             videoWriter.write(frame)

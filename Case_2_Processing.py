@@ -3,8 +3,10 @@ import numpy as np
 from scipy import ndimage
 import matplotlib.pyplot as plt
 import Case2_binary_component
+import xlsxwriter
 
 BOTTOM_STARTING_HEIGHT = 275
+DEBUG_FILE_NAME = "debug.xlsx"
 
 
 def get_binary_cc(binary_image):
@@ -38,9 +40,10 @@ def sort_component_by_area(component_list):
     return component_list
 
 
-def get_bottom_two_parts(img):
+def get_bottom_two_parts(img, frame_num=0):
     gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    bottom_height = bottom_two_parts_recursion_helper(gray, BOTTOM_STARTING_HEIGHT)
+    bottom_height = bottom_two_parts_recursion_helper(gray, BOTTOM_STARTING_HEIGHT, frame_num)
+    # 413 is the cutoff threshold for non-detection
     if bottom_height != -1:
         h, w = gray.shape
         line_y_position = h - bottom_height
@@ -52,33 +55,39 @@ def get_bottom_two_parts(img):
     return img
 
 
-def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height):
+def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number=0):
     # 1. Crop the bottom image out. If the cutoff line is more than half way up to the image. Then return -1 indicate
     # this is not a good image
+    kernel = np.ones((5, 5), np.uint8)
     h, w = full_gray_img.shape
     if cutoff_height >= h / 2:
+        bottom_gray = full_gray_img[h - cutoff_height:, :]
+        _, bw = cv2.threshold(bottom_gray, 60, 255, cv2.THRESH_BINARY)
+        if frame_number != 0:
+            cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
+        cv2.imshow('Unsegmented', bw)
         return -1
 
     bottom_gray = full_gray_img[h - cutoff_height:, :]
 
     # 2. Thresholding the image
-    thresh_val = pixel_by_percentile(bottom_gray, 75)
     _, bw = cv2.threshold(bottom_gray, 60, 255, cv2.THRESH_BINARY)
-
+    bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
     # 3. get binary connected component list
     binary_cc_list = get_binary_cc(bw)
-
     if len(binary_cc_list) < 2:
-        return bottom_two_parts_recursion_helper(full_gray_img, cutoff_height+1)
+        return bottom_two_parts_recursion_helper(full_gray_img, cutoff_height+1, frame_number)
 
     # 4. determine stop condition
     stop = recursion_stop(binary_cc_list)
 
     if stop:
+        if frame_number != 0:
+            cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
         return cutoff_height
     else:
         cutoff_height += 1
-        return bottom_two_parts_recursion_helper(full_gray_img, cutoff_height)
+        return bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number)
 
 
 def recursion_stop(binary_cc_list):
@@ -91,7 +100,7 @@ def recursion_stop(binary_cc_list):
 
     mean_area = np.average(area_list)
     stdv_area = np.std(area_list)
-    large_area_cutoff = mean_area + 3 * stdv_area
+    large_area_cutoff = mean_area + 2 * stdv_area
 
     large_area_criteria = second_largest.area > large_area_cutoff
     top_cutoff_criteria = largest.area_cutoff & second_largest.area_cutoff

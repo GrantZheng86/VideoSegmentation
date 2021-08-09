@@ -58,7 +58,7 @@ class Case2BinaryComponent:
         background = background.astype(np.uint8)
 
         color_background = cv2.cvtColor(background, cv2.COLOR_GRAY2BGR)
-        cv2.drawContours(color_background, [self.contour], -1, (0, 255, 0), 1)
+        cv2.drawContours(color_background, [self.contour], -1, (0, 255, 0), 2)
         cv2.imshow('contour', color_background)
         cv2.waitKey(0)
         cv2.destroyAllWindows()
