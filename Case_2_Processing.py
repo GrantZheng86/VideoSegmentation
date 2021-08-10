@@ -7,6 +7,7 @@ import xlsxwriter
 
 BOTTOM_STARTING_HEIGHT = 275
 DEBUG_FILE_NAME = "debug.xlsx"
+THRESHOLDING_CUTOFF = 100
 
 
 def get_binary_cc(binary_image):
@@ -58,11 +59,13 @@ def get_bottom_two_parts(img, frame_num=0):
 def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number=0):
     # 1. Crop the bottom image out. If the cutoff line is more than half way up to the image. Then return -1 indicate
     # this is not a good image
-    kernel = np.ones((5, 5), np.uint8)
+    kernel = np.ones((7, 7), np.uint8)
     h, w = full_gray_img.shape
     if cutoff_height >= h / 2:
         bottom_gray = full_gray_img[h - cutoff_height:, :]
-        _, bw = cv2.threshold(bottom_gray, 60, 255, cv2.THRESH_BINARY)
+
+        _, bw = cv2.threshold(bottom_gray, THRESHOLDING_CUTOFF, 255, cv2.THRESH_BINARY)
+        bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
         if frame_number != 0:
             cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
         cv2.imshow('Unsegmented', bw)
@@ -71,12 +74,12 @@ def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number
     bottom_gray = full_gray_img[h - cutoff_height:, :]
 
     # 2. Thresholding the image
-    _, bw = cv2.threshold(bottom_gray, 60, 255, cv2.THRESH_BINARY)
+    _, bw = cv2.threshold(bottom_gray, THRESHOLDING_CUTOFF, 255, cv2.THRESH_BINARY)
     bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
     # 3. get binary connected component list
     binary_cc_list = get_binary_cc(bw)
     if len(binary_cc_list) < 2:
-        return bottom_two_parts_recursion_helper(full_gray_img, cutoff_height+1, frame_number)
+        return bottom_two_parts_recursion_helper(full_gray_img, cutoff_height + 1, frame_number)
 
     # 4. determine stop condition
     stop = recursion_stop(binary_cc_list)
@@ -100,12 +103,26 @@ def recursion_stop(binary_cc_list):
 
     mean_area = np.average(area_list)
     stdv_area = np.std(area_list)
-    large_area_cutoff = mean_area + 2 * stdv_area
+    large_area_cutoff = 1750
 
     large_area_criteria = second_largest.area > large_area_cutoff
-    top_cutoff_criteria = largest.area_cutoff & second_largest.area_cutoff
 
-    if large_area_criteria and not top_cutoff_criteria:
+    largest_x = largest.centroid[0]
+    second_x = second_largest.centroid[0]
+
+    largest_y = largest.centroid[1]
+    second_y = second_largest.centroid[1]
+
+    # position_constraint_x = second_x > largest_x
+    # position_constraint_y = second_y > largest_y
+    position_constraint = np.abs(largest_y - second_y) < 80
+
+    if largest.area_cutoff == False and second_largest.area_cutoff == False:
+        top_cutoff_criteria = False
+    else:
+        top_cutoff_criteria = True
+
+    if large_area_criteria and not top_cutoff_criteria and position_constraint:
         return True
     else:
         return False

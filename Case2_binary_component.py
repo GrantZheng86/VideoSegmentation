@@ -10,6 +10,7 @@ class Case2BinaryComponent:
         self.area = -1
         self.area_cutoff = True
         self.contour = None
+        self.centroid = None
         self.separate_component()
 
         if self.area != 1:
@@ -17,9 +18,19 @@ class Case2BinaryComponent:
             self.determine_cutoff()
             # print(self.area_cutoff)
             self.invalid_component = False
+            self.fill_centroid()
             # self.visualize_with_contour()
         else:
             self.invalid_component = True
+
+    def fill_centroid(self):
+        background = np.zeros(self.label_image.shape)
+        idx = np.where(self.label_image == self.label_num)
+        background[idx] = 255
+        background = background.astype(np.uint8)
+        _, _, _, centroid = cv2.connectedComponentsWithStats(background)
+        self.centroid = centroid[-1]
+        print()
 
     def separate_component(self):
         """
