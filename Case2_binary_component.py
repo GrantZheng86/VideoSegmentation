@@ -30,7 +30,6 @@ class Case2BinaryComponent:
         background = background.astype(np.uint8)
         _, _, _, centroid = cv2.connectedComponentsWithStats(background)
         self.centroid = centroid[-1]
-        print()
 
     def separate_component(self):
         """
@@ -98,7 +97,41 @@ class Case2BinaryComponent:
             counter += 1
         self.contour = np.squeeze(contours[actual_contour_id])
 
-        # color_background = cv2.cvtColor(background, cv2.COLOR_GRAY2BGR)
-        # cv2.drawContours(color_background, contours, -1, (0, 255, 0), 2)
-        # cv2.imshow('contour', color_background)
-        # print()
+    def get_contour_top(self):
+        contour_x = self.contour[:, 0]
+        left_most_x = np.min(contour_x)
+        right_most_x = np.max(contour_x)
+
+        left_candidate_index = np.where(contour_x == left_most_x)[0]
+        right_candidate_index = np.where(contour_x == right_most_x)[0]
+
+        left_candidate = np.squeeze(self.contour[left_candidate_index, :])
+        right_candidate = np.squeeze(self.contour[right_candidate_index, :])
+
+        if len(left_candidate_index) > 1:
+            left_candidate_y = left_candidate[:, 1]
+            min_y = np.min(left_candidate_y)
+            upper_index = np.where(self.contour[:, 1] == min_y)
+            upper_left_index = np.intersect1d(upper_index, left_candidate_index)
+        else:
+            upper_left_index = left_candidate_index
+
+        if len(right_candidate_index) > 1:
+            right_candidate_y = right_candidate[:, 1]
+            min_y = np.min(right_candidate_y)
+            upper_index = np.where(self.contour[:, 1] == min_y)[0]
+            upper_right_index = np.intersect1d(upper_index, right_candidate_index)
+        else:
+            upper_right_index = right_candidate_index
+
+        front_half = self.contour[0:upper_left_index[0], :]
+        front_half = np.flipud(front_half)
+        back_half = self.contour[upper_right_index[0]:, :]
+        back_half = np.flipud(back_half)
+        toReturn = np.concatenate((front_half, back_half))
+
+        return np.array(toReturn.tolist())
+
+
+
+

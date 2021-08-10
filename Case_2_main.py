@@ -18,7 +18,14 @@ if __name__ == "__main__":
 
         if ret:
             frame = frame[140:965, 0:580, :]
-            frame = Case_2_Processing.get_bottom_two_parts(frame, counter)
+            original_frame = frame.copy()
+            frame, height, valid_frame = Case_2_Processing.get_bottom_two_parts(frame, counter)
+
+            if valid_frame:
+                bt_frame_start = frame.shape[0] - height
+                bt_frame = original_frame[bt_frame_start:, :, :]
+                partitioned_bt_frame = Case_2_Processing.partition_bottom_frame(bt_frame)
+
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Frame", frame)
             videoWriter.write(frame)
