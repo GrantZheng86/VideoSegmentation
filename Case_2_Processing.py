@@ -7,7 +7,7 @@ import xlsxwriter
 
 BOTTOM_STARTING_HEIGHT = 275
 DEBUG_FILE_NAME = "debug.xlsx"
-THRESHOLDING_CUTOFF = 100
+THRESHOLDING_CUTOFF = 95
 
 
 def get_binary_cc(binary_image):
@@ -68,8 +68,8 @@ def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number
 
         _, bw = cv2.threshold(bottom_gray, THRESHOLDING_CUTOFF, 255, cv2.THRESH_BINARY)
         bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
-        # if frame_number != 0:
-        #     cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
+        if frame_number != 0:
+            cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
         cv2.imshow('Unsegmented', bw)
         return -1
 
@@ -87,8 +87,8 @@ def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number
     stop = recursion_stop(binary_cc_list)
 
     if stop:
-        # if frame_number != 0:
-        #     cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
+        if frame_number != 0:
+            cv2.imwrite("Debugging Frame {}.jpg".format(frame_number), cv2.cvtColor(bw, cv2.COLOR_GRAY2BGR))
         return cutoff_height
     else:
         cutoff_height += 1
@@ -137,6 +137,8 @@ def pixel_by_percentile(img, percentile):
     thresh_value = np.percentile(non_zero_array, percentile)
     return thresh_value
 
+def partition_invalid_frame(bt_frame):
+    pass
 
 def partition_bottom_frame(bt_frame):
     gray_bt_frame = cv2.cvtColor(bt_frame, cv2.COLOR_BGR2GRAY)
@@ -150,6 +152,7 @@ def partition_bottom_frame(bt_frame):
     largest_x = largest.centroid[0]
     second_x = second.centroid[0]
 
+    print(largest.centroid[1] - second.centroid[1])
     if largest_x < second_x:
         femur = second
         pelvis = largest
@@ -157,13 +160,95 @@ def partition_bottom_frame(bt_frame):
         femur = largest
         pelvis = second
 
-    femur_top_contour = femur.get_contour_top()
-    pelvis_top_contour = pelvis.get_contour_top()
+    femur_top_contour = femur.get_contour_top(pelvis=False)
+    # femur_mr = cv2.minAreaRect(femur.contour)
+    # box1 = cv2.boxPoints(femur_mr)
+    # box1 = np.int0(box1)
+    pelvis_top_contour = pelvis.get_contour_top(pelvis=True)
+    # pelvis_mr = cv2.minAreaRect(pelvis.contour)
+    # box2 = cv2.boxPoints(pelvis_mr)
+    # box2 = np.int0(box2)
 
-    cv2.polylines(bt_frame, [femur_top_contour], False, (0, 255, 0), 2)
-    cv2.imshow('Top Contour', bt_frame)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.polylines(bt_frame, [femur_top_contour, pelvis_top_contour], False, (0, 255, 0), 2)
+    # cv2.drawContours(bt_frame, [box2], 0, (0, 0, 255), 2)
+    # cv2.imshow('Top Contour', bt_frame)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
+
+    return femur_top_contour, pelvis_top_contour
+
+
+def height_adjustment(contour, height_offset):
+    r, c = contour.shape
+    x_offset = np.zeros((r, 1))
+    y_offset = np.ones((r, 1)) * height_offset
+    adjustment = np.hstack((x_offset, y_offset))
+    adjusted_contour = contour + adjustment
+    adjusted_contour = adjusted_contour.astype(np.int32)
+    return adjusted_contour
+
+
+def fill_fumer_contour(top_contour, img):
+    w = img.shape[1]
+    beginning = top_contour[0]
+    end = top_contour[-1]
+
+    if end[0] != w - 1:
+        y = top_contour[:, 1]
+        x = top_contour[:, 0]
+
+        reg = np.polyfit(x, y, 3)
+        fxn = np.poly1d(reg)
+
+        end_leftover_x = np.transpose(np.arange(end[0], w-1))
+        end_leftover_y = fxn(end_leftover_x)
+
+        end_left_over = np.transpose(np.array([end_leftover_x , end_leftover_y]))
+
+        toReturn = np.concatenate((top_contour, end_left_over))
+        toReturn = toReturn.astype(np.int32)
+        return toReturn
+    else:
+        return top_contour
+        # visualize_poly_fit_function(fxn, w)
+
+
+def fill_pelvis_contour(top_contour, img):
+    w = img.shape[1]
+    beginning = top_contour[0]
+    end = top_contour[-1]
+
+    if (end[0] != w - 1) or (beginning[0] != 0):
+        _, l = top_contour.shape
+
+        x1 = top_contour[0:20, 0]
+        x2 = top_contour[-50:-30, 0]
+        x = np.concatenate((x1, x2))
+
+        y1 = top_contour[0:20, 1]
+        y2 = top_contour[-50:-30, 1]
+        y = np.concatenate((y1, y2))
+
+        reg = np.polyfit(x, y, 1)
+        fxn = np.poly1d(reg)
+        # visualize_poly_fit_function(reg, w)
+
+        new_beginning = np.array([[0, fxn(0)]], dtype=np.int32)
+        new_end = np.array([[w - 1, fxn(w - 1)]], dtype=np.int32)
+
+        return_contour = np.concatenate((new_beginning, top_contour, new_end))
+
+    else:
+        return_contour = top_contour
+    return return_contour
+
+
+def visualize_poly_fit_function(reg, width):
+    fxn = np.poly1d(reg)
+    x = np.arange(400, width)
+    y = fxn(x)
+    plt.plot(x, y)
+    plt.show()
 
 
 def image_convolution(img):

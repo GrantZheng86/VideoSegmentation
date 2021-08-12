@@ -97,7 +97,7 @@ class Case2BinaryComponent:
             counter += 1
         self.contour = np.squeeze(contours[actual_contour_id])
 
-    def get_contour_top(self):
+    def get_contour_top(self, pelvis=False):
         contour_x = self.contour[:, 0]
         left_most_x = np.min(contour_x)
         right_most_x = np.max(contour_x)
@@ -124,14 +124,46 @@ class Case2BinaryComponent:
         else:
             upper_right_index = right_candidate_index
 
-        front_half = self.contour[0:upper_left_index[0], :]
-        front_half = np.flipud(front_half)
-        back_half = self.contour[upper_right_index[0]:, :]
-        back_half = np.flipud(back_half)
-        toReturn = np.concatenate((front_half, back_half))
+        if upper_right_index[0] > upper_left_index[0]:
+            smaller_index = upper_left_index[0]
+            larger_index = upper_right_index[0]
+        else:
+            smaller_index = upper_right_index[0]
+            larger_index = upper_left_index[0]
 
-        return np.array(toReturn.tolist())
+        contour_1 = self.contour[smaller_index:larger_index, :]
+        contour_2_1 = self.contour[larger_index:, :]
+        contour_2_2 = self.contour[0:smaller_index, :]
+        contour_2 = np.concatenate((contour_2_1, contour_2_2))
+        contour_1_y = contour_1[:, 1]
+        contour_2_y = contour_2[:, 1]
 
+        if np.average(contour_1_y) > np.average(contour_2_y):
+            top_contour = contour_2
+        else:
+            top_contour = contour_1
 
+        if top_contour[0, 0] > top_contour[-1, 0]:
+            top_contour = np.flipud(top_contour)
 
+        return np.array(top_contour.tolist())
+
+    @staticmethod
+    def get_upper_right_corner(cornerPoints):
+
+        toReturn = {}
+        center_pos = (np.average(cornerPoints[:, 0]), np.average(cornerPoints[:, 1]))
+        for eachPoint in cornerPoints:
+            if eachPoint[0] < center_pos[0]:
+                if eachPoint[1] < center_pos[1]:
+                    toReturn[0] = eachPoint
+                else:
+                    toReturn[1] = eachPoint
+            else:
+                if eachPoint[1] > center_pos[1]:
+                    toReturn[2] = eachPoint
+                else:
+                    toReturn[3] = eachPoint
+
+        return toReturn[3]
 
