@@ -131,9 +131,9 @@ class Case2BinaryComponent:
             smaller_index = upper_right_index[0]
             larger_index = upper_left_index[0]
 
-        contour_1 = self.contour[smaller_index:larger_index, :]
+        contour_1 = self.contour[smaller_index:larger_index+1, :]
         contour_2_1 = self.contour[larger_index:, :]
-        contour_2_2 = self.contour[0:smaller_index, :]
+        contour_2_2 = self.contour[0:smaller_index+1, :]
         contour_2 = np.concatenate((contour_2_1, contour_2_2))
         contour_1_y = contour_1[:, 1]
         contour_2_y = contour_2[:, 1]
@@ -146,7 +146,7 @@ class Case2BinaryComponent:
         if top_contour[0, 0] > top_contour[-1, 0]:
             top_contour = np.flipud(top_contour)
 
-        return np.array(top_contour.tolist())
+        return top_contour
 
     @staticmethod
     def get_upper_right_corner(cornerPoints):
@@ -167,3 +167,82 @@ class Case2BinaryComponent:
 
         return toReturn[3]
 
+
+class Case2TopBinaryComponent(Case2BinaryComponent):
+
+    def __init__(self, connected_component_label_image, label_num):
+        super().__init__(connected_component_label_image, label_num)
+        # self.label_image = connected_component_label_image
+        # self.label_num = label_num
+        # self.area = -1
+        # self.area_cutoff = True
+        # self.contour = None
+        # self.centroid = None
+        # self.separate_component()
+        #
+        # if self.area != 1:
+        #     self.get_contour()
+        #     self.determine_cutoff()
+        #     # print(self.area_cutoff)
+        #     self.invalid_component = False
+        #     self.fill_centroid()
+        #     # self.visualize_with_contour()
+        # else:
+        #     self.invalid_component = True
+
+    def determine_cutoff(self):
+        r, c = self.label_image.shape
+
+        x, y, w, h = cv2.boundingRect(self.contour)
+        if y + h == r:
+            self.area_cutoff = True
+        else:
+            self.area_cutoff = False
+
+    def get_contour_bottom(self):
+        hull = np.squeeze(cv2.convexHull(self.contour))
+        hull_x = hull[:, 0]
+        hull_y = hull[:, 1]
+
+        max_hull_x = np.max(hull_x)
+        min_hull_x = np.min(hull_x)
+
+        max_index = np.where(hull_x == max_hull_x)[0]
+        min_index = np.where(hull_x == min_hull_x)[0]
+
+        if len(max_index) > 1:
+            candidate_y = hull_y[max_index]
+            lower_y = np.max(candidate_y)
+            lower_y_index = np.where(hull_y == lower_y)
+            max_index = np.intersect1d(max_index, lower_y_index)[0]
+        else:
+            max_index = max_index[0]
+
+        if len(min_index) > 1:
+            candidate_y = hull_y[min_index]
+            lower_y = np.max(candidate_y)
+            lower_y_index = np.where(hull_y == lower_y)
+            min_index = np.intersect1d(min_index, lower_y_index)[0]
+        else:
+            min_index = min_index[0]
+
+        smaller_index = min_index
+        larger_index = max_index
+
+        if min_index > max_index:
+            smaller_index = max_index
+            larger_index = min_index
+
+        contour_1 = hull[smaller_index:larger_index+1]
+
+        contour_2_1 = hull[larger_index:, :]
+        contour_2_2 = hull[0:smaller_index + 1, :]
+        contour_2 = np.concatenate((contour_2_1, contour_2_2))
+
+        contour_1_y = np.average(contour_1[:, 1])
+        contour_2_y = np.average(contour_2[:, 1])
+
+        if contour_1_y > contour_2_y:
+            return contour_1
+        else:
+            return contour_2

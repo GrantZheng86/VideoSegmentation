@@ -143,6 +143,9 @@ def partition_invalid_frame(bt_frame):
 def partition_bottom_frame(bt_frame):
     gray_bt_frame = cv2.cvtColor(bt_frame, cv2.COLOR_BGR2GRAY)
     _, bw = cv2.threshold(gray_bt_frame, THRESHOLDING_CUTOFF, 255, cv2.THRESH_BINARY)
+    kernel = np.ones((7, 7), np.uint8)
+    bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
+
     binary_cc_list = get_binary_cc(bw)
     sorted_binary_cc_list = sort_component_by_area(binary_cc_list)
 
@@ -165,6 +168,7 @@ def partition_bottom_frame(bt_frame):
     # box1 = cv2.boxPoints(femur_mr)
     # box1 = np.int0(box1)
     pelvis_top_contour = pelvis.get_contour_top(pelvis=True)
+    pelvis_top_contour = trim_contour(pelvis_top_contour)
     # pelvis_mr = cv2.minAreaRect(pelvis.contour)
     # box2 = cv2.boxPoints(pelvis_mr)
     # box2 = np.int0(box2)
@@ -176,6 +180,44 @@ def partition_bottom_frame(bt_frame):
     # cv2.destroyAllWindows()
 
     return femur_top_contour, pelvis_top_contour
+
+
+def trim_contour(contour, length=50, starting_index=0):
+    contour_y = contour[:, 1]
+    window = 20
+    if contour.shape[0] < length:
+        return contour
+
+    l = len(contour_y)
+    slope_list = []
+    for i in range(length - window):
+        samples = contour_y[l - i - window - starting_index:l - i - starting_index]
+        slope = average_slope(samples)
+        slope_list.append(slope)
+
+    print("Final Average slope = {}".format(np.average(slope_list)))
+
+    if np.average(slope_list) > 0:
+        return trim_contour(contour, starting_index=starting_index+1)
+    elif starting_index == 0:
+        return contour
+    else:
+        return contour[0:l - (length - window) - starting_index, :]
+
+
+def average_slope(sample_list):
+
+    l = len(sample_list)
+    slope_list = []
+    curr_item = sample_list[0]
+    for i in range(l - 1):
+        compare_item = sample_list[i+1]
+        difference = compare_item - curr_item
+        slope = difference / (i + 1)
+        slope_list.append(slope)
+
+    return np.average(slope_list)
+
 
 
 def height_adjustment(contour, height_offset):
@@ -221,13 +263,15 @@ def fill_pelvis_contour(top_contour, img):
     if (end[0] != w - 1) or (beginning[0] != 0):
         _, l = top_contour.shape
 
-        x1 = top_contour[0:20, 0]
-        x2 = top_contour[-50:-30, 0]
-        x = np.concatenate((x1, x2))
+        # x1 = top_contour[0:20, 0]
+        x2 = top_contour[-130:-1, 0]
+        # x = np.concatenate((x1, x2))
+        x = x2
 
-        y1 = top_contour[0:20, 1]
-        y2 = top_contour[-50:-30, 1]
-        y = np.concatenate((y1, y2))
+        # y1 = top_contour[0:20, 1]
+        y2 = top_contour[-130:-1, 1]
+        # y = np.concatenate((y1, y2))
+        y = y2
 
         reg = np.polyfit(x, y, 1)
         fxn = np.poly1d(reg)
@@ -304,3 +348,6 @@ def image_gradient(img):
 
     to_show = np.hstack((lap, sobely, sobelx))
     cv2.imshow('Gradient', to_show)
+
+
+
