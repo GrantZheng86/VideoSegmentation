@@ -3,6 +3,7 @@ import numpy as np
 import time
 import Case_2_Processing
 import Case_2_top_processing
+import Case_2_middle_processing
 
 FILE_NAME = "New Videos/1-2.mp4"
 
@@ -54,11 +55,21 @@ if __name__ == "__main__":
                 # partitioning the top frame
                 # TODO: Check if the bottom contour needs to be moved up
                 top_contour, segment_height = Case_2_top_processing.get_top_element_bottom_contour(original_frame)
-                cv2.polylines(frame, [top_contour], False, (0, 255, 255), 2)
+                if top_contour is not None:
+                    cv2.polylines(frame, [top_contour], False, (0, 255, 255), 2)
 
-                # partitioning the middle part
-                middle_frame = original_frame[segment_height:bt_frame_start, :, :]
-                cv2.imshow("Middle frame", middle_frame)
+                    # partitioning the middle part
+                    middle_frame = original_frame[segment_height:bt_frame_start, :, :]
+                    middle_top_contour, middle_bottom_contour = Case_2_middle_processing.partition_middle_part(middle_frame)
+
+                    middle_top_contour[:, 1] += segment_height
+                    middle_bottom_contour[:, 1] += segment_height
+                    cv2.polylines(frame, [middle_top_contour], False, (155, 0, 255), 1)
+                    cv2.polylines(frame, [middle_bottom_contour], False, (155, 0, 255), 1)
+                    # cv2.imshow("Middle frame", middle_frame)
+                else:
+                    cv2.putText(frame, "Top Segmentation Failed", (50, 125), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
+                                2)
 
 
 

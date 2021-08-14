@@ -9,6 +9,8 @@ THRESHOLD_VALUE = 60
 
 def get_top_element_bottom_contour(frame):
     segment_height = segment_top(frame)
+    if segment_height == -1:
+        return None, None
     segmented_frame = frame[0:segment_height, :, :]
     gray_frame = cv2.cvtColor(segmented_frame, cv2.COLOR_BGR2GRAY)
     _, thresholded = cv2.threshold(gray_frame, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
@@ -36,6 +38,10 @@ def segment_top(frame):
 
 
 def segmentation_recursion_helper(gray_frame, height):
+
+    if height >= (gray_frame.shape[0]/2 - 50):
+        return -1
+
     segmented_frame = gray_frame[0:height, :]
     _, thresholded = cv2.threshold(segmented_frame, THRESHOLD_VALUE, 255, cv2.THRESH_BINARY)
     num_cc, labels, stats, centroids = cv2.connectedComponentsWithStats(thresholded, connectivity=4)
