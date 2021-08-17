@@ -137,8 +137,10 @@ def pixel_by_percentile(img, percentile):
     thresh_value = np.percentile(non_zero_array, percentile)
     return thresh_value
 
+
 def partition_invalid_frame(bt_frame):
     pass
+
 
 def partition_bottom_frame(bt_frame):
     gray_bt_frame = cv2.cvtColor(bt_frame, cv2.COLOR_BGR2GRAY)
@@ -163,11 +165,11 @@ def partition_bottom_frame(bt_frame):
         femur = largest
         pelvis = second
 
-    femur_top_contour = femur.get_contour_top(pelvis=False)
+    femur_top_contour = femur.get_contour_top()
     # femur_mr = cv2.minAreaRect(femur.contour)
     # box1 = cv2.boxPoints(femur_mr)
     # box1 = np.int0(box1)
-    pelvis_top_contour = pelvis.get_contour_top(pelvis=True)
+    pelvis_top_contour = pelvis.get_contour_top()
     pelvis_top_contour = trim_contour(pelvis_top_contour)
     # pelvis_mr = cv2.minAreaRect(pelvis.contour)
     # box2 = cv2.boxPoints(pelvis_mr)
@@ -198,7 +200,7 @@ def trim_contour(contour, length=50, starting_index=0):
     print("Final Average slope = {}".format(np.average(slope_list)))
 
     if np.average(slope_list) > 0:
-        return trim_contour(contour, starting_index=starting_index+1)
+        return trim_contour(contour, starting_index=starting_index + 1)
     elif starting_index == 0:
         return contour
     else:
@@ -206,18 +208,16 @@ def trim_contour(contour, length=50, starting_index=0):
 
 
 def average_slope(sample_list):
-
     l = len(sample_list)
     slope_list = []
     curr_item = sample_list[0]
     for i in range(l - 1):
-        compare_item = sample_list[i+1]
+        compare_item = sample_list[i + 1]
         difference = compare_item - curr_item
         slope = difference / (i + 1)
         slope_list.append(slope)
 
     return np.average(slope_list)
-
 
 
 def height_adjustment(contour, height_offset):
@@ -242,10 +242,10 @@ def fill_fumer_contour(top_contour, img):
         reg = np.polyfit(x, y, 3)
         fxn = np.poly1d(reg)
 
-        end_leftover_x = np.transpose(np.arange(end[0], w-1))
+        end_leftover_x = np.transpose(np.arange(end[0], w - 1))
         end_leftover_y = fxn(end_leftover_x)
 
-        end_left_over = np.transpose(np.array([end_leftover_x , end_leftover_y]))
+        end_left_over = np.transpose(np.array([end_leftover_x, end_leftover_y]))
 
         toReturn = np.concatenate((top_contour, end_left_over))
         toReturn = toReturn.astype(np.int32)
@@ -348,6 +348,3 @@ def image_gradient(img):
 
     to_show = np.hstack((lap, sobely, sobelx))
     cv2.imshow('Gradient', to_show)
-
-
-

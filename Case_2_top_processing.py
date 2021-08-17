@@ -4,7 +4,7 @@ import Case2_binary_component
 from Case_2_Processing import sort_component_by_area
 
 STARTING_HEIGHT = 200
-THRESHOLD_VALUE = 60
+THRESHOLD_VALUE = 100
 
 
 def get_top_element_bottom_contour(frame):

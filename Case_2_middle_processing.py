@@ -1,13 +1,14 @@
 import cv2
 import numpy as np
 import Case2_binary_component
-from Case_2_Processing import sort_component_by_area
+from Case_2_Processing import sort_component_by_area, pixel_by_percentile
 
 
 def partition_middle_part(middle_frame):
     middle_frame = cv2.blur(middle_frame, (5, 5))
     gray_frame = cv2.cvtColor(middle_frame, cv2.COLOR_BGR2GRAY)
-    _, binary = cv2.threshold(gray_frame, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+    pixel_cutoff = pixel_by_percentile(gray_frame, 75)
+    _, binary = cv2.threshold(gray_frame, pixel_cutoff, 255, cv2.THRESH_BINARY)
     kernel = np.ones((7, 7), np.uint8)
     bw = cv2.morphologyEx(binary, cv2.MORPH_OPEN, kernel)
 

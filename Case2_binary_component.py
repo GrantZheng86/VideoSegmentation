@@ -61,7 +61,7 @@ class Case2BinaryComponent:
         cv2.waitKey(0)
         cv2.destroyAllWindows()
 
-    def visualize_with_contour(self):
+    def visualize_with_contour(self, hold_on=False):
         background = np.zeros(self.label_image.shape)
         idx = np.where(self.label_image == self.label_num)
         background[idx] = 255
@@ -70,8 +70,9 @@ class Case2BinaryComponent:
         color_background = cv2.cvtColor(background, cv2.COLOR_GRAY2BGR)
         cv2.drawContours(color_background, [self.contour], -1, (0, 255, 0), 2)
         cv2.imshow('contour', color_background)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        if hold_on:
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
 
     def get_contour(self):
         """
@@ -315,3 +316,4 @@ class Case2MiddleBinaryComponent(Case2TopBinaryComponent):
             return contour_2
         else:
             return contour_1
+

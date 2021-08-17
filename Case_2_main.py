@@ -5,7 +5,7 @@ import Case_2_Processing
 import Case_2_top_processing
 import Case_2_middle_processing
 
-FILE_NAME = "New Videos/1-2.mp4"
+FILE_NAME = "New Videos/2-2.mp4"
 
 if __name__ == "__main__":
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
@@ -59,6 +59,7 @@ if __name__ == "__main__":
                     cv2.polylines(frame, [top_contour], False, (0, 255, 255), 2)
 
                     # partitioning the middle part
+                    segment_height += 50
                     middle_frame = original_frame[segment_height:bt_frame_start, :, :]
                     middle_top_contour, middle_bottom_contour = Case_2_middle_processing.partition_middle_part(middle_frame)
 
