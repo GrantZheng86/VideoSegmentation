@@ -8,12 +8,12 @@ import os
 
 
 def scale_image(raw_img):
-    # raw_img = cv2.imread(image_name)
+    # raw_img = cv2.imread(raw_img)
     raw_img = cv2.cvtColor(raw_img, cv2.COLOR_BGR2GRAY)
     raw_img = raw_img[143:, 0:575]
-    scaler = StandardScaler()
-    scaler.fit(raw_img)
-    scaled_img = scaler.transform(raw_img)
+    # scaler = StandardScaler()
+    # scaler.fit(raw_img)
+    # scaled_img = scaler.transform(raw_img)
     # plt.imshow(raw_img, cmap='gray')
     # plt.show()
     # plt.imshow(scaled_img, cmap='gray')
@@ -22,15 +22,15 @@ def scale_image(raw_img):
 
 
 def perform_pca(scaled_img):
-    pca_image = PCA(n_components=1)
-    # pca_image = PCA(0.85)
+    # pca_image = PCA(n_components=1)
+    pca_image = PCA(0.6)
     pca_image.fit(scaled_img)
     to_return = pca_image.transform(scaled_img)
     approx = pca_image.inverse_transform(to_return)
     combined = np.hstack((approx, scaled_img))
     # plt.imshow(combined, cmap='gray')
     # plt.show()
-    return combined, to_return
+    return approx, scaled_img, to_return
 
 
 def write2Video(video_name):
@@ -45,12 +45,13 @@ def write2Video(video_name):
 
         if ret:
             frame = scale_image(frame)
-            pac_img, pca_vec = perform_pca(frame)
+            pac_img, original,  pca_vec = perform_pca(frame)
             pca_list.append(pca_vec)
             pac_img = pac_img.astype(np.uint8)
             pac_img = cv2.cvtColor(pac_img, cv2.COLOR_GRAY2RGB)
             cv2.putText(pac_img, str(counter), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Processed", pac_img)
+            cv2.waitKey(0)
             videoWriter.write(pac_img)
 
         if cv2.waitKey(1) & 0xFF == ord('q'):
@@ -82,10 +83,12 @@ def segment_pc(csv_file):
         changes.append(curr_change)
 
     threshed_change, rising_sig = calculate_z_score(changes)
-    # cutoff = np.percentile(changes, 60)
-    # plt.plot(changes)
+
+    cutoff = np.percentile(changes, 60)
+    plt.plot(changes)
+
     # plt.hlines(cutoff, 0, 280)
-    # plt.show()
+    plt.show()
     # print(changes)
 
     return threshed_change, rising_sig
@@ -120,8 +123,17 @@ def calculate_z_score(data_list):
         z_list.append(np.abs(curr_z))
         counter += 1
 
-    plt.plot(z_list)
-    plt.plot(threshed_sig)
+    fig, a = plt.subplots()
+    a.plot(z_list)
+    # a.plot(threshed_sig)
+    a.set_xlabel("Frame Number")
+    a.set_ylabel("Filtered Euclidean Distance")
+
+    a2 = a.twinx()
+    a2.plot(threshed_sig, 'r--')
+    a2.set_ylabel('Muscle Change', color='r')
+    a2.tick_params('y', colors='r')
+    fig.tight_layout()
     plt.show()
 
     return threshed_sig, rising_list
@@ -158,15 +170,15 @@ def write_state_to_video(video_name, state_change_list):
 
 if __name__ == "__main__":
     # scaled_img = scale_image('Vid_1.mp4 extracted.jpg')
-    # perform_pca(scaled_img)
-    pca_vec = write2Video("New Videos/Vid_1.mp4")
-    pca_vec = np.array(pca_vec)
-    pca_vec = np.squeeze(pca_vec)
-    pac_df = pd.DataFrame(pca_vec)
-
-    pwd = os.getcwd()
-    csv_name = "First_PC.csv"
-    pac_df.to_csv(os.path.join(pwd, csv_name))
+    # returned_val = perform_pca(scaled_img)
+    # pca_vec = write2Video("New Videos/Vid_1.mp4")
+    # pca_vec = np.array(pca_vec)
+    # pca_vec = np.squeeze(pca_vec)
+    # pac_df = pd.DataFrame(pca_vec)
+    #
+    # pwd = os.getcwd()
+    # csv_name = "First_PC.csv"
+    # pac_df.to_csv(os.path.join(pwd, csv_name))
 
     _, state_change = segment_pc("First_PC.csv")
     write_state_to_video("output.avi", state_change)

@@ -5,7 +5,7 @@ import Case_1_Processing
 from skimage import measure
 import matplotlib.pyplot as plt
 
-FILE_NAME = "New Videos/1-1.mp4"
+FILE_NAME = "New Videos/2-1.mp4"
 
 
 def adjust_gamma(image, gamma=1.0):
@@ -35,18 +35,23 @@ if __name__ == "__main__":
             gray_frame = Case_1_Processing.self_multiply(gray_frame)
             h, w, _ = frame.shape
             original_frame = frame.copy()
-            cutoff_height, top_contour, r = Case_1_Processing.bottom_segmentation_recursion_helper(gray_frame)
+            cutoff_height, top_hull, top_contour = Case_1_Processing.bottom_segmentation_recursion_helper(gray_frame)
+            top_hull, flipped = Case_1_Processing.rearrange_hull_contour(top_hull)
+
+            print("Frame {}".format(counter))
 
             if cutoff_height != -1:
+                extended_top_contour = Case_1_Processing.extend_top_contour(top_contour, top_hull, flipped, gray_frame)
                 height_offset = h - cutoff_height
-                top_contour[:, 1] += height_offset
-                top_contour = top_contour[top_contour[:,0].argsort()]
-                cv2.polylines(frame, [top_contour], False, (0, 255, 255), 1)
-                cv2.putText(frame, str(r), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                top_hull[:, 1] += height_offset
+                top_hull = top_hull[top_hull[:,0].argsort()]
+                cv2.polylines(frame, [top_hull], False, (0, 255, 255), 1)
+                # bottom_segmentation_code = Case_1_Processing.detect_valid_bottom_segmentation(slope_with_weight)
+                # cv2.putText(frame, str(bottom_segmentation_code), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
-                if r < 2.2:
-                    cv2.putText(frame, "Unreliable", (350, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+
 
             cv2.imshow("Frame", frame)
             time.sleep(1 / 20)

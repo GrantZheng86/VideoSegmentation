@@ -64,6 +64,37 @@ class Class_1_binary_cc(Case2BinaryComponent):
             return contour_2
         else:
             return contour_1
+    #
+    # def get_hull_slope_with_weight(self):
+    #     top_hull = self.get_hull_top()
+    #     hull_1 = top_hull[0]
+    #     hull_2 = top_hull[-1]
+    #
+    #     if hull_1[1] < hull_2[1]:
+    #         top_hull = np.flipud(top_hull)
+    #
+    #     toReturn = []
+    #     for i in range(len(top_hull) - 1):
+    #         curr_hull = top_hull[i]
+    #         next_hull = top_hull[i+1]
+    #
+    #         delta_y = next_hull[1] - curr_hull[1]
+    #         delta_x = abs(next_hull[0] - curr_hull[0])
+    #
+    #         # Just in case of getting dividing by 0 error
+    #         if delta_x == 0:
+    #             delta_x = 1
+    #
+    #         slope = delta_y / delta_x
+    #         weight = np.linalg.norm([delta_x, delta_y])
+    #
+    #         toReturn.append([slope, weight])
+    #
+    #     return toReturn
+
+
+
+
 
     def valid_test(self):
         """
@@ -98,4 +129,4 @@ class Class_1_binary_cc(Case2BinaryComponent):
         cnt = self.contour
         x, y, w, h = cv2.boundingRect(cnt)
         aspect_ratio = w/h
-        return aspect_ratio
+        return h
