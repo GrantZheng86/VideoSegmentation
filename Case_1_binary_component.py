@@ -51,9 +51,9 @@ class Class_1_binary_cc(Case2BinaryComponent):
             smaller_index = max_index
             larger_index = min_index
 
-        contour_1 = hull[smaller_index+1:larger_index]
+        contour_1 = hull[smaller_index + 1:larger_index]
 
-        contour_2_1 = hull[larger_index+1:, :]
+        contour_2_1 = hull[larger_index + 1:, :]
         contour_2_2 = hull[0:smaller_index, :]
         contour_2 = np.concatenate((contour_2_1, contour_2_2))
 
@@ -64,6 +64,7 @@ class Class_1_binary_cc(Case2BinaryComponent):
             return contour_2
         else:
             return contour_1
+
     #
     # def get_hull_slope_with_weight(self):
     #     top_hull = self.get_hull_top()
@@ -92,10 +93,6 @@ class Class_1_binary_cc(Case2BinaryComponent):
     #
     #     return toReturn
 
-
-
-
-
     def valid_test(self):
         """
         Test if the current connected component is valid. This component needs to stretch a certain distance to cover
@@ -107,7 +104,7 @@ class Class_1_binary_cc(Case2BinaryComponent):
         max_x = np.max(hull[:, 0])
         h, w = self.label_image.shape
 
-        if min_x > w/3 or max_x < w/3*2:
+        if min_x > w / 3 or max_x < w / 3 * 2:
             return False
 
         return True
@@ -128,5 +125,5 @@ class Class_1_binary_cc(Case2BinaryComponent):
     def minimum_bounding_rectangle(self):
         cnt = self.contour
         x, y, w, h = cv2.boundingRect(cnt)
-        aspect_ratio = w/h
+        aspect_ratio = w / h
         return h

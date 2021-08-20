@@ -5,7 +5,7 @@ from Case_2_Processing import sort_component_by_area, pixel_by_percentile
 from skimage import measure
 
 BOTTOM_STARTING_HEIGHT = 300
-THRESHOLD_VALUE = 30
+THRESHOLD_VALUE = 25
 SMALL_AREA_THRESH = 10000
 LARGE_AREA_THRESH = SMALL_AREA_THRESH * 20
 BOTTOM_CUTOFF_PERCENTILE = 80
@@ -23,6 +23,7 @@ def rearrange_hull_contour(top_hull):
 
 
 def extend_top_contour(top_contour, top_hull, flipped, gray_frame):
+    frame_width = gray_frame.shape[1]
     if flipped:
         end_pixel_count = 0
         begin_pixel_count = gray_frame.shape[1] - 1
@@ -32,33 +33,83 @@ def extend_top_contour(top_contour, top_hull, flipped, gray_frame):
     rearranged_top_contour, _ = rearrange_hull_contour(top_contour)
 
     if len(top_hull) == 2:
+        pass
         # Case of only 2 points on top convex hull
-        contour_x_beg = rearranged_top_contour[0, 0]
-        contour_x_end = rearranged_top_contour[-1, 0]
+        # contour_x_beg = rearranged_top_contour[0, 0]
+        # contour_x_end = rearranged_top_contour[-1, 0]
+        #
+        # beg_full = True
+        # end_full = True
+        # if begin_pixel_count != contour_x_beg:
+        #     beg_full = False
+        # if end_pixel_count != contour_x_end:
+        #     end_full = False
+        #
+        # linear_fit_all = np.polyfit(top_hull, deg=1)
+        # linear_fit_all = np.poly1d(linear_fit_all)
+        #
+        # if not beg_full:
+        #     begin_filler = generate_linear_fit_points(begin_pixel_count, contour_x_beg, linear_fit_all)
+        # if not end_full:
+        #     end_filler = generate_linear_fit_points(end_pixel_count, contour_x_end, linear_fit_all)
 
-        beg_full = True
-        end_full = True
-        if begin_pixel_count != contour_x_beg:
-            beg_full = False
-        if end_pixel_count != contour_x_end:
-            end_full = False
-
-        linear_fit_all = np.polyfit(top_hull, deg=1)
-        linear_fit_all = np.poly1d(linear_fit_all)
-
-        if not beg_full:
-            begin_filler = generate_linear_fit_points(begin_pixel_count, contour_x_beg, linear_fit_all)
-        if not end_full:
-            end_filler = generate_linear_fit_points(end_pixel_count, contour_x_end, linear_fit_all)
 
     else:
         rearranged_top_hull, _ = rearrange_hull_contour(top_hull)
-        valid_final_slope = detect_truncation(rearranged_top_hull)
-        # TODO: Truncate the contour and fill it up if the final slope is not valid
-        wanted_top_contour = get_good_portion(top_hull, top_contour, flipped)
+        truncate_final_portion = detect_truncation(rearranged_top_hull)
+        if truncate_final_portion:
+            truncated_top_contour = truncate_top_contour(rearranged_top_contour, rearranged_top_hull)
+            extended_top_contour = fill_truncated_top_contour(rearranged_top_hull, truncated_top_contour, frame_width)
+            extended_top_contour = remove_loop_contour(extended_top_contour)
+            return extended_top_contour
 
-    filled_contour = np.concatenate((begin_filler, top_contour, end_filler))
-    return filled_contour
+    rearranged_top_hull, _ = rearrange_hull_contour(top_hull)
+    extended_top_contour = fill_untruncated_top_contour(rearranged_top_hull, rearranged_top_contour, frame_width)
+    return extended_top_contour
+
+
+def remove_loop_contour(extended_contour):
+    flipped = False
+    if extended_contour[0, 0] > extended_contour[-1, 0]:
+        flipped = True
+
+    valid_index_list = []
+    recorded_x = extended_contour[0, 0]
+    for i in range(len(extended_contour) - 1):
+        curr_x = extended_contour[i, 0]
+        next_x = extended_contour[i+1, 0]
+
+        if flipped:
+            delta_recorded = curr_x - recorded_x
+            if delta_recorded <= 0:
+                recorded_x = curr_x
+            delta_main = next_x - recorded_x
+            if delta_main <= 0:
+                valid_index_list.append(i)
+        else:
+            delta_recorded = curr_x - recorded_x
+            if delta_recorded >= 0:
+                recorded_x = curr_x
+            else:
+                print()
+            delta_main = next_x - recorded_x
+            if delta_main >= 0:
+                valid_index_list.append(i)
+    valid_index_list.append(i+1)
+
+    # contour_x_set = set()
+    # valid_index_list = []
+    # for i in range(extended_contour):
+    #     curr_x = extended_contour[i, 0]
+    #     duplicated = curr_x in contour_x_set
+    #
+    #     if not duplicated:
+    #         contour_x_set.add(curr_x)
+    #         valid_index_list.append(i)
+
+    valid_extended_contour = extended_contour[valid_index_list, :]
+
+    return valid_extended_contour
 
 
 def get_good_portion(top_hull, top_contour, flipped):
@@ -89,6 +140,132 @@ def get_good_portion(top_hull, top_contour, flipped):
     return contour_left
 
 
+def truncate_top_contour(top_contour, top_hull):
+    """
+    Truncates the top contour elements that are in the final section of top_hull. Note: both top hull and top contour
+    needs to be in rearranged form
+    :param top_contour:
+    :param top_hull:
+    :return: a 2D truncated top_contour array
+    """
+    flipped = False
+    top_hull_x_beg = top_hull[0, 0]
+    top_hull_x_end = top_hull[-1, 0]
+    if top_hull_x_beg > top_hull_x_end:
+        flipped = True
+
+    top_hull_end_point = top_hull[-2, :]
+    top_hull_beg_point = top_hull[0, :]
+    if flipped:
+        inclusion_index_end = get_first_encounter(top_contour, top_hull_end_point[0])
+        inclusion_index_end = np.arange(0, inclusion_index_end)
+        inclusion_index_beg = get_first_encounter(top_contour, top_hull_beg_point[0])
+        inclusion_index_beg = np.arange(inclusion_index_beg, len(top_contour))
+        # inclusion_index_end = np.where(top_contour[:, 0] >= top_hull_end_point[0])[0]
+        # inclusion_index_beg = np.where(top_contour[:, 0] <= top_hull_beg_point[0])[0]
+    else:
+        inclusion_index_end = get_first_encounter(top_contour, top_hull_end_point[0])
+        inclusion_index_end = np.arange(0, inclusion_index_end)
+        inclusion_index_beg = get_first_encounter(top_contour, top_hull_beg_point[0])
+        inclusion_index_beg = np.arange(inclusion_index_beg, len(top_contour))
+        # inclusion_index_end = np.where(top_contour[:, 0] <= top_hull_end_point[0])[0]
+        # inclusion_index_beg = np.where(top_contour[:, 0] >= top_hull_beg_point[0])[0]
+
+    inclusion_index = list(set(inclusion_index_beg) & set(inclusion_index_end))
+    inclusion_contour = top_contour[inclusion_index, :]
+    return inclusion_contour
+
+
+def get_first_encounter(contour_list, condition):
+    l = len(contour_list)
+
+    for i in range(l):
+        if contour_list[i, 0] == condition:
+            return i
+
+    raise Exception('Invalid Condition')
+
+
+def fill_untruncated_top_contour(top_hull, top_contour, frame_width):
+    hull_last = top_hull[-1, :]
+    hull_last_2 = top_hull[-2, :]
+    x = [hull_last[0], hull_last_2[0]]
+    y = [hull_last[1], hull_last_2[1]]
+
+    linear_fit = np.polyfit(x, y, 1)
+    linear_fit = np.poly1d(linear_fit)
+
+    flipped = False
+    top_hull_x_beg = top_hull[0, 0]
+    top_hull_x_end = top_hull[-1, 0]
+    if top_hull_x_beg > top_hull_x_end:
+        flipped = True
+
+    x_end_stop = top_contour[-1, 0]
+    x_beg_stop = top_contour[0, 0]
+
+    if flipped:
+        x_fill_range = np.arange(0, x_end_stop)
+        x_beg_fill_range = np.arange(x_beg_stop + 1, frame_width)
+    else:
+        x_fill_range = np.arange(x_end_stop + 1, frame_width)
+        x_beg_fill_range = np.arange(0, x_beg_stop)
+
+    y_fill_range = linear_fit(x_fill_range)
+    y_beg_fill_range = linear_fit(x_beg_fill_range)
+    end_filled_range = np.transpose(np.vstack((x_fill_range, y_fill_range)))
+    beg_fill_range = np.transpose(np.vstack((x_beg_fill_range, y_beg_fill_range)))
+    if flipped:
+        end_filled_range = np.flipud(end_filled_range)
+        beg_fill_range = np.flipud(beg_fill_range)
+    filled_top_contour = np.concatenate((beg_fill_range, top_contour, end_filled_range))
+    return filled_top_contour.astype(np.int32)
+
+
+
+
+def fill_truncated_top_contour(top_hull, truncated_top_contour, frame_width):
+    """
+    Extends both left and right of the truncated top contour. Truncation means that the ending of the top contour is
+    undesirable
+    :param top_hull:
+    :param truncated_top_contour:
+    :param frame_width:
+    :return:
+    """
+    flipped = False
+    top_hull_x_beg = top_hull[0, 0]
+    top_hull_x_end = top_hull[-1, 0]
+    if top_hull_x_beg > top_hull_x_end:
+        flipped = True
+
+    top_hull_end_1 = top_hull[-2, :]
+    top_hull_end_2 = top_hull[-3, :]
+    top_hull_end_x = [top_hull_end_1[0], top_hull_end_2[0]]
+    top_hull_end_y = [top_hull_end_1[1], top_hull_end_2[1]]
+    linear_fit = np.polyfit(top_hull_end_x, top_hull_end_y, 1)
+    linear_fit = np.poly1d(linear_fit)
+    x_end_stop = truncated_top_contour[-1, 0]
+    x_beg_stop = truncated_top_contour[0, 0]
+
+    if flipped:
+        x_fill_range = np.arange(0, x_end_stop)
+        x_beg_fill_range = np.arange(x_beg_stop + 1, frame_width)
+    else:
+        x_fill_range = np.arange(x_end_stop + 1, frame_width)
+        x_beg_fill_range = np.arange(0, x_beg_stop)
+
+    y_fill_range = linear_fit(x_fill_range)
+    y_beg_fill_range = linear_fit(x_beg_fill_range)
+    end_filled_range = np.transpose(np.vstack((x_fill_range, y_fill_range)))
+    beg_fill_range = np.transpose(np.vstack((x_beg_fill_range, y_beg_fill_range)))
+    if flipped:
+        end_filled_range = np.flipud(end_filled_range)
+        beg_fill_range = np.flipud(beg_fill_range)
+    filled_top_contour = np.concatenate((beg_fill_range, truncated_top_contour, end_filled_range))
+    return filled_top_contour.astype(np.int32)
+
+
 def generate_linear_fit_points(begin_num, end_num, fit_equation):
     flipped = False
     if begin_num > end_num:
@@ -110,10 +287,9 @@ def generate_linear_fit_points(begin_num, end_num, fit_equation):
 
 def detect_truncation(top_hull):
     """
-    Determine if a end truncation is necessary. Top Hull needs to be a rearranged top_hull, I.E. y value from small to
-    large
-    :param top_hull:
-    :return:
+    Determine if a end truncation is necessary. Top Hull needs to be a rearranged top_hull, I.E. y value from small
+    to large :param top_hull: :return: A boolean. True if the slope difference is greater than 0.2, False otherwise.
+    A True return signals that the final part of the slope need to be truncated
     """
     weighted_slope_list = hull_slope_with_weight(top_hull)
     max_weight = np.max(weighted_slope_list[:, 1])
@@ -126,7 +302,6 @@ def detect_truncation(top_hull):
         return True
     else:
         return False
-
 
 
 def hull_slope_with_weight(top_hull):
