@@ -27,6 +27,7 @@ def extract_contours(img, crop_location):
     top_contour = top_info[1]
     top_contour[:, 1] = top_contour[:, 1] + (im_h - seg_height)
     remove_bumps(top_contour)
+
     cv2.polylines(bgr_img, [top_info[1]], False, (0, 255, 0))
     cv2.imshow('bw', bgr_img)
 
