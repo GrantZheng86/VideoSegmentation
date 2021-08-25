@@ -57,41 +57,67 @@ class Class_1_binary_cc(Case2BinaryComponent):
         contour_2_2 = hull[0:smaller_index, :]
         contour_2 = np.concatenate((contour_2_1, contour_2_2))
 
-        contour_1_y = np.average(contour_1[:, 1])
-        contour_2_y = np.average(contour_2[:, 1])
+        contour_1_filled = Class_1_binary_cc.connecting_hull_points(contour_1)
+        contour_2_filled = Class_1_binary_cc.connecting_hull_points(contour_2)
+
+        contour_1_y = np.average(contour_1_filled)
+        contour_2_y = np.average(contour_2_filled)
 
         if contour_1_y > contour_2_y:
             return contour_2
         else:
             return contour_1
 
-    #
-    # def get_hull_slope_with_weight(self):
-    #     top_hull = self.get_hull_top()
-    #     hull_1 = top_hull[0]
-    #     hull_2 = top_hull[-1]
-    #
-    #     if hull_1[1] < hull_2[1]:
-    #         top_hull = np.flipud(top_hull)
-    #
-    #     toReturn = []
-    #     for i in range(len(top_hull) - 1):
-    #         curr_hull = top_hull[i]
-    #         next_hull = top_hull[i+1]
-    #
-    #         delta_y = next_hull[1] - curr_hull[1]
-    #         delta_x = abs(next_hull[0] - curr_hull[0])
-    #
-    #         # Just in case of getting dividing by 0 error
-    #         if delta_x == 0:
-    #             delta_x = 1
-    #
-    #         slope = delta_y / delta_x
-    #         weight = np.linalg.norm([delta_x, delta_y])
-    #
-    #         toReturn.append([slope, weight])
-    #
-    #     return toReturn
+    def get_hull_bottom(self):
+        hull = self.convert_to_convex_hull()
+        hull_x = hull[:, 0]
+        hull_y = hull[:, 1]
+
+        max_hull_x = np.max(hull_x)
+        min_hull_x = np.min(hull_x)
+
+        max_index = np.where(hull_x == max_hull_x)[0]
+        min_index = np.where(hull_x == min_hull_x)[0]
+
+        if len(max_index) > 1:
+            candidate_y = hull_y[max_index]
+            lower_y = np.max(candidate_y)
+            lower_y_index = np.where(hull_y == lower_y)
+            max_index = np.intersect1d(max_index, lower_y_index)[0]
+        else:
+            max_index = max_index[0]
+
+        if len(min_index) > 1:
+            candidate_y = hull_y[min_index]
+            lower_y = np.max(candidate_y)
+            lower_y_index = np.where(hull_y == lower_y)
+            min_index = np.intersect1d(min_index, lower_y_index)[0]
+        else:
+            min_index = min_index[0]
+
+        smaller_index = min_index
+        larger_index = max_index
+
+        if min_index > max_index:
+            smaller_index = max_index
+            larger_index = min_index
+
+        contour_1 = hull[smaller_index + 1:larger_index]
+
+        contour_2_1 = hull[larger_index + 1:, :]
+        contour_2_2 = hull[0:smaller_index, :]
+        contour_2 = np.concatenate((contour_2_1, contour_2_2))
+
+        contour_1_filled = Class_1_binary_cc.connecting_hull_points(contour_1)
+        contour_2_filled = Class_1_binary_cc.connecting_hull_points(contour_2)
+
+        contour_1_y = np.average(contour_1_filled)
+        contour_2_y = np.average(contour_2_filled)
+
+        if contour_1_y < contour_2_y:
+            return contour_2
+        else:
+            return contour_1
 
     def valid_test(self):
         """
@@ -127,3 +153,78 @@ class Class_1_binary_cc(Case2BinaryComponent):
         x, y, w, h = cv2.boundingRect(cnt)
         aspect_ratio = w / h
         return h
+
+    def get_contour_bottom(self):
+        contour_x = self.contour[:, 0]
+        left_most_x = np.min(contour_x)
+        right_most_x = np.max(contour_x)
+
+        left_candidate_index = np.where(contour_x == left_most_x)[0]
+        right_candidate_index = np.where(contour_x == right_most_x)[0]
+
+        left_candidate = np.squeeze(self.contour[left_candidate_index, :])
+        right_candidate = np.squeeze(self.contour[right_candidate_index, :])
+
+        if len(left_candidate_index) > 1:
+            left_candidate_y = left_candidate[:, 1]
+            min_y = np.min(left_candidate_y)
+            upper_index = np.where(self.contour[:, 1] == min_y)
+            upper_left_index = np.intersect1d(upper_index, left_candidate_index)
+        else:
+            upper_left_index = left_candidate_index
+
+        if len(right_candidate_index) > 1:
+            right_candidate_y = right_candidate[:, 1]
+            min_y = np.min(right_candidate_y)
+            upper_index = np.where(self.contour[:, 1] == min_y)[0]
+            upper_right_index = np.intersect1d(upper_index, right_candidate_index)
+        else:
+            upper_right_index = right_candidate_index
+
+        if upper_right_index[0] > upper_left_index[0]:
+            smaller_index = upper_left_index[0]
+            larger_index = upper_right_index[0]
+        else:
+            smaller_index = upper_right_index[0]
+            larger_index = upper_left_index[0]
+
+        contour_1 = self.contour[smaller_index:larger_index + 1, :]
+        contour_2_1 = self.contour[larger_index:, :]
+        contour_2_2 = self.contour[0:smaller_index + 1, :]
+        contour_2 = np.concatenate((contour_2_1, contour_2_2))
+        contour_1_y = contour_1[:, 1]
+        contour_2_y = contour_2[:, 1]
+
+        if np.average(contour_1_y) < np.average(contour_2_y):
+            bottom_contour = contour_2
+        else:
+            bottom_contour = contour_1
+
+        if bottom_contour[0, 0] > bottom_contour[-1, 0]:
+            bottom_contour = np.flipud(bottom_contour)
+
+        return bottom_contour
+
+    @staticmethod
+    def connecting_hull_points(hull):
+
+        filled_hull = np.array([])
+        for i in range(len(hull) - 1):
+            curr_pt = hull[i, :]
+            next_pt = hull[i+1, :]
+            x = [curr_pt[0], next_pt[0]]
+            y = [curr_pt[1], next_pt[1]]
+
+            linear_fit = np.polyfit(x, y, 1)
+            linear_fit = np.poly1d(linear_fit)
+
+            if x[0] < x[1]:
+                fit_range = np.arange(x[0], x[1])
+            else:
+                fit_range = np.arange(x[1], x[0])
+            linear_fit_result = linear_fit(fit_range)
+
+            filled_hull = np.append(filled_hull, linear_fit_result)
+        return filled_hull
+
+

@@ -24,36 +24,10 @@ def rearrange_hull_contour(top_hull):
 
 def extend_top_contour(top_contour, top_hull, flipped, gray_frame):
     frame_width = gray_frame.shape[1]
-    if flipped:
-        end_pixel_count = 0
-        begin_pixel_count = gray_frame.shape[1] - 1
-    else:
-        end_pixel_count = gray_frame.shape[1] - 1
-        begin_pixel_count = 0
     rearranged_top_contour, _ = rearrange_hull_contour(top_contour)
 
     if len(top_hull) == 2:
         pass
-        # Case of only 2 points on top convex hull
-        # contour_x_beg = rearranged_top_contour[0, 0]
-        # contour_x_end = rearranged_top_contour[-1, 0]
-        #
-        # beg_full = True
-        # end_full = True
-        # if begin_pixel_count != contour_x_beg:
-        #     beg_full = False
-        # if end_pixel_count != contour_x_end:
-        #     end_full = False
-        #
-        # linear_fit_all = np.polyfit(top_hull, deg=1)
-        # linear_fit_all = np.poly1d(linear_fit_all)
-        #
-        # if not beg_full:
-        #     begin_filler = generate_linear_fit_points(begin_pixel_count, contour_x_beg, linear_fit_all)
-        # if not end_full:
-        #     end_filler = generate_linear_fit_points(end_pixel_count, contour_x_end, linear_fit_all)
-
-
     else:
         rearranged_top_hull, _ = rearrange_hull_contour(top_hull)
         truncate_final_portion = detect_truncation(rearranged_top_hull)
@@ -77,7 +51,7 @@ def remove_loop_contour(extended_contour):
     recorded_x = extended_contour[0, 0]
     for i in range(len(extended_contour) - 1):
         curr_x = extended_contour[i, 0]
-        next_x = extended_contour[i+1, 0]
+        next_x = extended_contour[i + 1, 0]
 
         if flipped:
             delta_recorded = curr_x - recorded_x
@@ -95,7 +69,7 @@ def remove_loop_contour(extended_contour):
             delta_main = next_x - recorded_x
             if delta_main >= 0:
                 valid_index_list.append(i)
-    valid_index_list.append(i+1)
+    valid_index_list.append(i + 1)
 
     # contour_x_set = set()
     # valid_index_list = []
@@ -186,11 +160,41 @@ def get_first_encounter(contour_list, condition):
     raise Exception('Invalid Condition')
 
 
+def black_out_bottom_part(bottom_top_contour, frame):
+    """
+    Since the direction of muscle is not a straight line. Just cutting of the frame horizontally might crop some of the
+    top parts. This method blacks out the bottom part under the contour
+    :param bottom_top_contour:
+    :param frame: Must be a grayscale 2D matrix
+    :return: a frame with the bottom part blacked out
+    """
+    frame_height, frame_width = frame.shape
+    bottom_top_contour_beg = bottom_top_contour[0]
+    bottom_top_contour_end = bottom_top_contour[-1]
+
+    if bottom_top_contour_beg[0] > bottom_top_contour_end[0]:
+        bottom_top_contour = np.flipud(bottom_top_contour)
+
+    lr_point = [frame_width - 1, frame_height - 1]
+    ll_point = [0, frame_height - 1]
+    bottom_top_contour = np.append(bottom_top_contour, [lr_point], axis=0)
+    bottom_top_contour = np.append(bottom_top_contour, [ll_point], axis=0)
+    # bottom_top_contour.append(lr_point)
+    # bottom_top_contour.append(ll_point)
+
+    cv2.drawContours(frame, [bottom_top_contour], -1, color=(0, 0, 0), thickness=cv2.FILLED)
+    return frame
+
+
 def fill_untruncated_top_contour(top_hull, top_contour, frame_width):
     hull_last = top_hull[-1, :]
     hull_last_2 = top_hull[-2, :]
     x = [hull_last[0], hull_last_2[0]]
     y = [hull_last[1], hull_last_2[1]]
+    if len(top_hull) >= 3:
+        hull_last_3 = top_hull[-3, :]
+        x.append(hull_last_3[0])
+        y.append(hull_last_3[1])
 
     linear_fit = np.polyfit(x, y, 1)
     linear_fit = np.poly1d(linear_fit)
@@ -220,8 +224,6 @@ def fill_untruncated_top_contour(top_hull, top_contour, frame_width):
         beg_fill_range = np.flipud(beg_fill_range)
     filled_top_contour = np.concatenate((beg_fill_range, top_contour, end_filled_range))
     return filled_top_contour.astype(np.int32)
-
-
 
 
 def fill_truncated_top_contour(top_hull, truncated_top_contour, frame_width):
@@ -329,7 +331,7 @@ def post_processing_bottom_segmentation(gray_frame, segmentation_height):
     cutoff_pixel = pixel_by_percentile(bottom_frame, BOTTOM_CUTOFF_PERCENTILE)
     _, bw = cv2.threshold(bottom_frame, cutoff_pixel, 255, cv2.THRESH_BINARY)
 
-    cv2.imshow('post processing', bw)
+    # cv2.imshow('post processing', bw)
 
 
 def self_multiply(gray_frame):
@@ -338,7 +340,7 @@ def self_multiply(gray_frame):
     gray_frame = gray_frame / np.amax(gray_frame)
     gray_frame = gray_frame * 255
     gray_frame = gray_frame.astype(np.uint8)
-    cv2.imshow('Self Multiply', gray_frame)
+    # cv2.imshow('Self Multiply', gray_frame)
     return gray_frame
 
 
@@ -374,6 +376,11 @@ def bottom_segmentation_recursion_helper(gray_frame, segment_height=BOTTOM_START
 
 
 def create_sorted_binary_cc_list(binary_image):
+    """
+    Creates sorted binary connected component by area
+    :param binary_image:
+    :return:
+    """
     num_cc, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_image, connectivity=4)
 
     binary_cc_list = []
