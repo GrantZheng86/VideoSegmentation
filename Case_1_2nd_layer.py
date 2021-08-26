@@ -10,7 +10,7 @@ LARGE_AREA_THRESHOLD = 5000
 DEBUMP_BLOCK_SIZE = 10
 
 
-def extract_contours(img, crop_location):
+def extract_contours(img, crop_location, img_configuration=1):
     if len(img.shape) == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     original_img = img.copy()
@@ -26,23 +26,27 @@ def extract_contours(img, crop_location):
     bw = cv2.morphologyEx(bw, cv2.MORPH_OPEN, kernel)
     seg_height, top_info, bottom_info = recursion_helper(bw, height=STARTING_HEIGHT)
 
-    top_contour = top_info[1]
-    top_contour[:, 1] = top_contour[:, 1] + (im_h - seg_height)
+    if seg_height != -1:
 
-    bottom_contour = bottom_info[1]
-    bottom_contour[:, 1] = bottom_contour[:, 1] + (im_h - seg_height)
-    left_bound, right_bound = find_image_boundary(original_img)
+        top_contour = top_info[1]
+        top_contour[:, 1] = top_contour[:, 1] + (im_h - seg_height)
 
-    top_contour = top_contour[10:-10, :]
-    bottom_contour = bottom_contour[10:-10, :]
+        bottom_contour = bottom_info[1]
+        bottom_contour[:, 1] = bottom_contour[:, 1] + (im_h - seg_height)
+        left_bound, right_bound = find_image_boundary(original_img)
 
-    bottom_contour = extend_contour(bottom_contour, left_bound, right_bound, original_img.shape[1])
-    top_contour = extend_contour(top_contour, left_bound, right_bound, original_img.shape[1])
+        left_bound_file_name = 'Case1-{}_boundary_left.npy'.format(img_configuration)
+        right_bound_file_name = 'Case1-{}_boundary_right.npy'.format(img_configuration)
+        left_bound = np.load(left_bound_file_name)
+        right_bound = np.load(right_bound_file_name)
+        top_contour = top_contour[10:-10, :]
+        bottom_contour = bottom_contour[10:-10, :]
 
-    cv2.polylines(bgr_img, [bottom_contour], False, (255, 0, 0), 2)
-    cv2.polylines(bgr_img, [top_contour], False, (0, 0, 255), 2)
-    cv2.imshow('Filled Contour', bgr_img)
+        bottom_contour = extend_contour(bottom_contour, left_bound, right_bound, original_img.shape[1])
+        top_contour = extend_contour(top_contour, left_bound, right_bound, original_img.shape[1])
 
+        return top_contour, bottom_contour
+    return None, None
 
 def extend_contour(contour, left_bound, right_bound, frame_width):
     left_full, right_full, left_to_right = extend_condition(contour, left_bound, right_bound)
@@ -85,7 +89,7 @@ def extend_contour(contour, left_bound, right_bound, frame_width):
     linear_approx = np.poly1d(np.polyfit(x, y, 1))
     if begin_pt[0] > left_reach_val:
         x_array = np.arange(int(left_reach_val), begin_pt[0])
-        y_array = linear_approx(x_array)
+        y_array = np.full_like(x_array, begin_pt[1])
         begin_fill = np.transpose(np.vstack((x_array, y_array)))
         begin_fill = begin_fill.astype(np.int32)
     else:
@@ -93,7 +97,7 @@ def extend_contour(contour, left_bound, right_bound, frame_width):
 
     if end_pt[0] < right_reach_val:
         x_array = np.arange(end_pt[0], int(right_reach_val))
-        y_array = linear_approx(x_array)
+        y_array = np.full_like(x_array, end_pt[1])
         end_fill = np.transpose(np.vstack((x_array, y_array)))
         end_fill = end_fill.astype(np.int32)
     else:
@@ -195,7 +199,7 @@ def create_angle_array(contour, starting_index):
 def recursion_helper(bw_img, height):
     h, w = bw_img.shape
     if height > h * 3 / 4:
-        return -1
+        return -1, None, None
     upper_stop = h - height
     bw_img_crop = bw_img[upper_stop:, :]
     sorted_binary_cc = get_binary_cc(bw_img_crop)

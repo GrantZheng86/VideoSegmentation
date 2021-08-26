@@ -6,8 +6,8 @@ import Case1_Middle_Layer
 import Case_1_2nd_layer
 from skimage import measure
 import matplotlib.pyplot as plt
-
-FILE_NAME = "New Videos/2-1.mp4"
+PATIENT_NUM = 1
+FILE_NAME = "New Videos/{}-1.mp4".format(PATIENT_NUM)
 
 
 def adjust_gamma(image, gamma=1.0):
@@ -31,7 +31,7 @@ if __name__ == "__main__":
         ret, frame = cap.read()
         counter += 1
 
-        if counter == 8:
+        if counter == 63:
             print()
 
         if ret:
@@ -70,9 +70,26 @@ if __name__ == "__main__":
                     blackout_contour_2[:, 1] = blackout_contour_2[:, 1] - 20
                     blacked_out_frame_2 = Case_1_Processing.black_out_bottom_part(blackout_contour_2, original_gray_frame)
 
-                    Case_1_2nd_layer.extract_contours(blacked_out_frame_2, crop_location=np.min(blackout_contour_2[:, 1]))
+                    second_top_contour, second_bottom_contour = Case_1_2nd_layer.extract_contours(
+                        blacked_out_frame_2, crop_location=np.min(blackout_contour_2[:, 1]), img_configuration=PATIENT_NUM)
+
+                    blackout_contour_3 = second_top_contour.copy()
+                    blackout_contour_3[:, 1] = blackout_contour_3[:, 1] - 10
+                    blacked_out_frame_3 = Case_1_Processing.black_out_bottom_part(blackout_contour_3, original_gray_frame)
+
+                    first_top_contour, first_bottom_contour = Case_1_2nd_layer.extract_contours(
+                        blacked_out_frame_3, crop_location=np.min(blackout_contour_2[:, 1]),
+                        img_configuration=PATIENT_NUM)
+
                     cv2.polylines(frame, [top_middle_contour], False, (255, 0, 0), 2)
                     cv2.polylines(frame, [bottom_middle_contour], False, (0, 0, 255), 2)
+                    if second_top_contour is not None:
+                        cv2.polylines(frame, [second_top_contour], False, (255, 0, 0), 2)
+                        cv2.polylines(frame, [second_bottom_contour], False, (0, 0, 255), 2)
+
+                    if first_top_contour is not None:
+                        cv2.polylines(frame, [first_top_contour], False, (255, 0, 0), 2)
+                        cv2.polylines(frame, [first_bottom_contour], False, (0, 0, 255), 2)
 
 
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
