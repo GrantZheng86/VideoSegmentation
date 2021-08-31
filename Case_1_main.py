@@ -6,7 +6,7 @@ import Case1_Middle_Layer
 import Case_1_2nd_layer
 from skimage import measure
 import matplotlib.pyplot as plt
-PATIENT_NUM = 1
+PATIENT_NUM = 2
 FILE_NAME = "New Videos/{}-1.mp4".format(PATIENT_NUM)
 
 

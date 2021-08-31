@@ -208,8 +208,7 @@ def detect_feature(contour, window_size=4):
 
         curr_value = contour[i + window_size]
 
-        if front_window_average > curr_value[1] and back_window_average > curr_value[1] and back_window_slope < 0 and \
-                front_window_slope > 0:
+        if front_window_average > curr_value[1] and back_window_average > curr_value[1] and back_window_slope < 0 < front_window_slope:
             return i + window_size
 
 

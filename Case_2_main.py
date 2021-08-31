@@ -9,7 +9,7 @@ FILE_NAME = "New Videos/2-2.mp4"
 
 if __name__ == "__main__":
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-    videoWriter = cv2.VideoWriter("output.avi", fourcc, fps=30, frameSize=(580, 825))
+    videoWriter = cv2.VideoWriter("Case2.avi", fourcc, fps=30, frameSize=(580, 825))
 
     cap = cv2.VideoCapture(FILE_NAME)
     counter = 0

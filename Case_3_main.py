@@ -3,10 +3,13 @@ import Case_3_processing
 import numpy as np
 import time
 
-FILE_NAME = "New Videos/2-4.mp4"
+FILE_NAME = "New Videos/1-4.mp4"
 TEMPLATE_TRACKING_FRAME_RATIO = 1/3
 
 if __name__ == "__main__":
+    fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
+    videoWriter = cv2.VideoWriter("Case3.avi", fourcc, fps=30, frameSize=(616, 825))
+
     cap = cv2.VideoCapture(FILE_NAME)
     counter = 0
     template = None
@@ -40,6 +43,8 @@ if __name__ == "__main__":
                 frame = np.vstack((non_tracking_frame, tracking_frame))
                 cv2.drawContours(frame, [encirclement], -1, (0, 255, 255), 1)
                 cv2.imshow("Template Matching", frame)
+                print(frame.shape)
+                videoWriter.write(frame)
 
         time.sleep(1/40)
 
