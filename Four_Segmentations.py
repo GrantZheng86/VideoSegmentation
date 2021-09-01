@@ -50,6 +50,9 @@ if __name__ == "__main__":
             distance = Case_4_Processing.findDistance(center, top_binary_bottom_contour)
             intersect = (int(center[0]), int(center[1] - distance))
             cv2.line(frame, center, intersect, (0, 0, 255), 3)
+
+            length = np.linalg.norm([center[0], center[1]], [intersect[0], intersect[1]])
+            cv2.putText(frame, str(length), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             frame = Case_4_Processing.annotate_frame(frame, (top_left, bottom_right))
             frame = np.vstack((top_annotation, frame, bottom_annotation))
 
