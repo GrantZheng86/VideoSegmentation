@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 
 BOTTOM_FEATURE_RATIO = 1.7
 BOTTOM_PERCENTILE = 50
-ASPECT_RATIO = 1.5
-TEMPLATE_HEIGHT = 175
+ASPECT_RATIO = 2
+TEMPLATE_HEIGHT = 165
 
 
 def annotate_frame(frame, corners):
@@ -23,7 +23,7 @@ def match_template(img, template):
     min_val, max_val, min_loc, max_loc = cv2.minMaxLoc(res)
     top_left = max_loc
     bottom_right = (top_left[0] + int(TEMPLATE_HEIGHT * ASPECT_RATIO), top_left[1] + TEMPLATE_HEIGHT)
-    center = (top_left[0] + TEMPLATE_HEIGHT, top_left[1] + int(TEMPLATE_HEIGHT / 2))
+    center = (top_left[0] + TEMPLATE_HEIGHT, top_left[1] + int(TEMPLATE_HEIGHT / ASPECT_RATIO))
 
     return top_left, bottom_right, center, max_val
 
@@ -231,8 +231,8 @@ def crop_image_for_template(point, frame):
 
     x_min = x - TEMPLATE_HEIGHT
     x_max = x + TEMPLATE_HEIGHT
-    y_min = int(y - TEMPLATE_HEIGHT / 2)
-    y_max = int(y + TEMPLATE_HEIGHT / 2)
+    y_min = int(y - TEMPLATE_HEIGHT / ASPECT_RATIO)
+    y_max = int(y + TEMPLATE_HEIGHT / ASPECT_RATIO)
 
     template = frame[y_min:y_max, x_min:x_max, :]
     return template

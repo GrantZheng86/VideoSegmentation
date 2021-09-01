@@ -3,13 +3,15 @@ import Case_4_Processing
 
 from time import sleep
 import numpy as np
+from PCAsegmentation import main_wrapper
 
-FILE_NAME = "New Videos/2-3.mp4"
+FILE_NAME = "New Videos/1-3.mp4"
 CASE_Num = 4
 
 if __name__ == "__main__":
+    state_list = main_wrapper(FILE_NAME)
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-    videoWriter = cv2.VideoWriter("Case4.avi", fourcc, fps=30, frameSize=(616, 1080))
+    videoWriter = cv2.VideoWriter("Case3.avi", fourcc, fps=30, frameSize=(616, 1080))
     cap = cv2.VideoCapture(FILE_NAME)
     counter = 0
     template = None
@@ -21,9 +23,11 @@ if __name__ == "__main__":
         if ret and counter == 1:
             frame = frame[140:965, :, :]
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, str(state_list[counter-1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             template = Case_4_Processing.findLandMarkFeature(frame)
 
         elif ret:
+            cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             top_annotation = frame[0:140, :, :]
             bottom_annotation = frame[965:, :, :]
             frame = frame[140:965, :, :]
@@ -50,9 +54,8 @@ if __name__ == "__main__":
             distance = Case_4_Processing.findDistance(center, top_binary_bottom_contour)
             intersect = (int(center[0]), int(center[1] - distance))
             cv2.line(frame, center, intersect, (0, 0, 255), 3)
-
-            length = np.linalg.norm([center[0], center[1]], [intersect[0], intersect[1]])
-            cv2.putText(frame, str(length), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            length = np.linalg.norm([center[0]-intersect[0],  center[1]-intersect[1]])
+            cv2.putText(frame, str(length), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             frame = Case_4_Processing.annotate_frame(frame, (top_left, bottom_right))
             frame = np.vstack((top_annotation, frame, bottom_annotation))
 
