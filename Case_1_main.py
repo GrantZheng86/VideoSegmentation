@@ -38,6 +38,8 @@ def calculate_distance(top_line, bottom_line, frame_width):
     preferred_x = int(frame_width / 2)
 
     bottom_center_index = None
+    bottom_center_x = None
+    bottom_center_y = None
     while bottom_center_index is None:
         bottom_center_index = np.where(bottom_line[:, 0] == preferred_x)[0]
 
@@ -45,10 +47,13 @@ def calculate_distance(top_line, bottom_line, frame_width):
             preferred_x += 1
             bottom_center_index = None
         else:
-            bottom_center_index = bottom_center_index[0]
+            bottom_center_y_candidate = bottom_line[bottom_center_index, 1]
+            bottom_center_y = int(np.max(bottom_center_y_candidate))
+            bottom_center_x = bottom_line[bottom_center_index[0], 0]
+            # bottom_center_index = bottom_center_index[0]
 
-    bottom_center_x = int(bottom_line[bottom_center_index, 0])
-    bottom_center_y = int(bottom_line[bottom_center_index, 1])
+    # bottom_center_x = int(bottom_line[bottom_center_index, 0])
+    # bottom_center_y = int(bottom_line[bottom_center_index, 1])
     base_center = (int(bottom_center_x), int(bottom_center_y))
 
     top_line_y = top_line[:, 1]
@@ -145,11 +150,13 @@ if __name__ == "__main__":
                                 cv2.polylines(frame, [first_top_contour], False, (255, 0, 0), 2)
                                 cv2.polylines(frame, [first_bottom_contour], False, (0, 0, 255), 2)
 
-                            l1, l2, l3 = get_sandwich_lines([first_top_contour, first_bottom_contour],
-                                                            [second_top_contour, second_bottom_contour],
-                                                            [top_middle_contour, bottom_middle_contour],
-                                                            extended_top_contour, frame.shape[1])
-                            annotate_sandwich_lines(frame, l1, l2, l3)
+
+                            if first_top_contour is not None and second_top_contour is not None:
+                                l1, l2, l3 = get_sandwich_lines([first_top_contour, first_bottom_contour],
+                                                                [second_top_contour, second_bottom_contour],
+                                                                [top_middle_contour, bottom_middle_contour],
+                                                                extended_top_contour, frame.shape[1])
+                                annotate_sandwich_lines(frame, l1, l2, l3)
 
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Frame", frame)
