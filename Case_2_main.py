@@ -7,7 +7,7 @@ import Case_2_middle_processing
 from Case_1_main import calculate_distance
 from PCAsegmentation import main_wrapper
 
-FILE_NAME = "New Videos/1-2.mp4"
+FILE_NAME = "New Videos/2-2.mp4"
 
 def annotate_sandwich_lines(frame, l1, l2):
     l_list = [l1, l2]
@@ -40,14 +40,15 @@ def fill_hull(hull):
     for i in range(l - 1):
         curr_x = hull[i, 0]
         next_x = hull[i+1, 0]
-        curr_y = hull[i, 1]
-        next_y = hull[i+1, 1]
-        filling_x = np.arange(curr_x, next_x)
-        fit_line = np.poly1d(np.polyfit([curr_x, next_x], [curr_y, next_y], 1))
-        filling_y = fit_line(filling_x)
+        if (curr_x != next_x):
+            curr_y = hull[i, 1]
+            next_y = hull[i+1, 1]
+            filling_x = np.arange(curr_x, next_x)
+            fit_line = np.poly1d(np.polyfit([curr_x, next_x], [curr_y, next_y], 1))
+            filling_y = fit_line(filling_x)
 
-        toReturn_x = np.append(toReturn_x, filling_x)
-        toReturn_y = np.append(toReturn_y, filling_y)
+            toReturn_x = np.append(toReturn_x, filling_x)
+            toReturn_y = np.append(toReturn_y, filling_y)
 
     toReturn = np.transpose(np.stack((toReturn_x, toReturn_y)))
     return toReturn.astype(np.int32)
@@ -57,7 +58,7 @@ def fill_hull(hull):
 if __name__ == "__main__":
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
     videoWriter = cv2.VideoWriter("Case2.avi", fourcc, fps=30, frameSize=(580, 825))
-    # state_list = main_wrapper(FILE_NAME, thresh=3)
+    state_list = main_wrapper(FILE_NAME, thresh=3)
 
 
     cap = cv2.VideoCapture(FILE_NAME)
@@ -119,7 +120,7 @@ if __name__ == "__main__":
                 else:
                     cv2.putText(frame, "Top Segmentation Failed", (50, 125), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
                                 2)
-                # cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+                cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 
 
