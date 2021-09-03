@@ -4,10 +4,11 @@ import numpy as np
 import Case_1_Processing
 import Case1_Middle_Layer
 import Case_1_2nd_layer
+from PCAsegmentation import main_wrapper
 from skimage import measure
 import matplotlib.pyplot as plt
 
-PATIENT_NUM = 2
+PATIENT_NUM = 1
 FILE_NAME = "New Videos/{}-1.mp4".format(PATIENT_NUM)
 
 
@@ -75,7 +76,7 @@ if __name__ == "__main__":
     # top middle contour is the third one from the top
     # second top_contour is the second one from the top
     # first top_contour is the first one from the top
-
+    state_list = main_wrapper(FILE_NAME)
     cap = cv2.VideoCapture(FILE_NAME)
     counter = 0
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
@@ -159,6 +160,7 @@ if __name__ == "__main__":
                                 annotate_sandwich_lines(frame, l1, l2, l3)
 
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, str(state_list[counter-1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             cv2.imshow("Frame", frame)
             time.sleep(1 / 20)
             videoWriter.write(frame)
