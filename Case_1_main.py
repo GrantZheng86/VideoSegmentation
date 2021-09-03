@@ -8,7 +8,7 @@ from PCAsegmentation import main_wrapper
 from skimage import measure
 import matplotlib.pyplot as plt
 
-PATIENT_NUM = 1
+PATIENT_NUM = 2
 FILE_NAME = "New Videos/{}-1.mp4".format(PATIENT_NUM)
 
 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     # top middle contour is the third one from the top
     # second top_contour is the second one from the top
     # first top_contour is the first one from the top
-    state_list = main_wrapper(FILE_NAME)
+    state_list = main_wrapper(FILE_NAME, thresh=2)
     cap = cv2.VideoCapture(FILE_NAME)
     counter = 0
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')

@@ -4,12 +4,61 @@ import time
 import Case_2_Processing
 import Case_2_top_processing
 import Case_2_middle_processing
+from Case_1_main import calculate_distance
+from PCAsegmentation import main_wrapper
 
-FILE_NAME = "New Videos/2-2.mp4"
+FILE_NAME = "New Videos/1-2.mp4"
+
+def annotate_sandwich_lines(frame, l1, l2):
+    l_list = [l1, l2]
+    color_list = [(255, 0, 255), (0, 255, 100), (255, 255, 50)]
+    counter = 0
+    for l in l_list:
+        center = l[1]
+        length = l[0]
+
+        end_pt = (center[0], center[1] + length)
+        cv2.line(frame, center, end_pt, color_list[counter], 2)
+        cv2.putText(frame, str(abs(length)), center, cv2.FONT_HERSHEY_SIMPLEX, 1, color_list[counter], 2)
+        counter += 1
+
+def get_sandwich_lines(frame, top_line, middle_layer, bottom_line):
+    first_distance, center_1 = calculate_distance(top_line, middle_layer[0], frame.shape[1])
+    second_distance, center_2 = calculate_distance(middle_layer[1], bottom_line, frame.shape[1])
+    return (first_distance, center_1), (second_distance, center_2)
+
+def fill_hull(hull):
+    l = len(hull)
+    hull_start_x = hull[0, 0]
+    hull_end_x = hull[-1, 0]
+
+    if hull_start_x > hull_end_x:
+        hull = np.flipud(hull)
+
+    toReturn_x = np.array([])
+    toReturn_y = np.array([])
+    for i in range(l - 1):
+        curr_x = hull[i, 0]
+        next_x = hull[i+1, 0]
+        curr_y = hull[i, 1]
+        next_y = hull[i+1, 1]
+        filling_x = np.arange(curr_x, next_x)
+        fit_line = np.poly1d(np.polyfit([curr_x, next_x], [curr_y, next_y], 1))
+        filling_y = fit_line(filling_x)
+
+        toReturn_x = np.append(toReturn_x, filling_x)
+        toReturn_y = np.append(toReturn_y, filling_y)
+
+    toReturn = np.transpose(np.stack((toReturn_x, toReturn_y)))
+    return toReturn.astype(np.int32)
+
+
 
 if __name__ == "__main__":
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
     videoWriter = cv2.VideoWriter("Case2.avi", fourcc, fps=30, frameSize=(580, 825))
+    # state_list = main_wrapper(FILE_NAME, thresh=3)
+
 
     cap = cv2.VideoCapture(FILE_NAME)
     counter = 0
@@ -21,15 +70,6 @@ if __name__ == "__main__":
         if ret:
             frame = frame[140:965, 0:580, :]
             original_frame = frame.copy()
-            # gray_frame = frame.copy()
-            # gray_frame = cv2.cvtColor(gray_frame, cv2.COLOR_BGR2GRAY)
-            # gray_frame = gray_frame.astype(np.int64)
-            # gray_frame = np.multiply(gray_frame, gray_frame)
-            # gray_frame = gray_frame / np.amax(gray_frame) * 255
-            # gray_frame = gray_frame.astype(np.uint8)
-            # frame = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2BGR)
-            # cv2.imshow('Testing', frame)
-
             frame, height, valid_frame = Case_2_Processing.get_bottom_two_parts(frame, counter)
 
             print("Frame Number : {}".format(counter))
@@ -65,12 +105,21 @@ if __name__ == "__main__":
 
                     middle_top_contour[:, 1] += segment_height
                     middle_bottom_contour[:, 1] += segment_height
-                    cv2.polylines(frame, [middle_top_contour], False, (155, 0, 255), 1)
-                    cv2.polylines(frame, [middle_bottom_contour], False, (155, 0, 255), 1)
-                    # cv2.imshow("Middle frame", middle_frame)
+
+                    filled_top = fill_hull(top_contour)
+                    filled_middle_top = fill_hull(middle_top_contour)
+                    filled_middle_bottom = fill_hull(middle_bottom_contour)
+                    filled_bottom = fill_hull(pelvis_contour_adjusted)
+                    cv2.polylines(frame, [filled_middle_top], False, (155, 0, 255), 1)
+                    cv2.polylines(frame, [filled_middle_bottom], False, (155, 0, 255), 1)
+                    l1, l2 = get_sandwich_lines(frame, filled_top, (filled_middle_top, filled_middle_bottom),
+                                                filled_bottom)
+                    annotate_sandwich_lines(frame, l1, l2)
+
                 else:
                     cv2.putText(frame, "Top Segmentation Failed", (50, 125), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255),
                                 2)
+                # cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
 
 
 

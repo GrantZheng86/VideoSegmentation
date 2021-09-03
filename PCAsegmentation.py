@@ -62,7 +62,7 @@ def write2Video(video_name):
     return pca_list
 
 
-def segment_pc(csv_file):
+def segment_pc(csv_file, thresh=2):
     changes = []
     # Low pass filter
     weights = [0.2, 0.2, 0.1, 0.1, 0.1, 0.1, 0.1, 0.05, 0.05]
@@ -82,17 +82,16 @@ def segment_pc(csv_file):
 
         changes.append(curr_change)
 
-    threshed_change, rising_sig = calculate_z_score(changes)
+    threshed_change, rising_sig = calculate_z_score(changes, thresh)
 
     return threshed_change, rising_sig
 
 
-def calculate_z_score(data_list):
+def calculate_z_score(data_list, thresh=2):
     window_size = 20
     l = len(data_list)
     z_list = []
     threshed_sig = []
-    thresh = 2
     counter = 0
     rising_list = []
 
@@ -154,7 +153,7 @@ def write_state_to_video(video_name, state_change_list):
 
     return state_list
 
-def main_wrapper(video_name):
+def main_wrapper(video_name, thresh=2):
     pca_vec = write2Video(video_name)
     pca_vec = np.array(pca_vec)
     pca_vec = np.squeeze(pca_vec)
@@ -164,7 +163,7 @@ def main_wrapper(video_name):
     csv_name = "First_PC.csv"
     pac_df.to_csv(os.path.join(pwd, csv_name))
 
-    _, state_change = segment_pc("First_PC.csv")
+    _, state_change = segment_pc("First_PC.csv", thresh)
     state_list = write_state_to_video("output.avi", state_change)
     return state_list
 

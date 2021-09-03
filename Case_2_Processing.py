@@ -3,6 +3,7 @@ import numpy as np
 from scipy import ndimage
 import matplotlib.pyplot as plt
 import Case2_binary_component
+
 import xlsxwriter
 
 BOTTOM_STARTING_HEIGHT = 275
@@ -49,9 +50,9 @@ def get_bottom_two_parts(img, frame_num=0):
     if bottom_height != -1:
         h, w = gray.shape
         line_y_position = h - bottom_height
-        start_pt = (0, line_y_position)
-        end_pt = (w, line_y_position)
-        img = cv2.line(img, start_pt, end_pt, (0, 255, 0), 3)
+        # start_pt = (0, line_y_position)
+        # end_pt = (w, line_y_position)
+        # # img = cv2.line(img, start_pt, end_pt, (0, 255, 0), 3)
         valid_frame = True
     else:
         img = cv2.putText(img, "No Segmentation", (100, 100), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 255), 2)
