@@ -1,11 +1,13 @@
 import cv2
 import numpy as np
 import matplotlib.pyplot as plt
+import Case_2_Processing
 
 TEMPLATE_SIZE = 150
 TOP_IMG_CROP = None
 BOTTOM_DETECTION_RATIO = 2
 ASPECT_RATIO = 2
+SPINE_OFFSET_VALUE = 75
 
 
 def get_spine_bottom_contour(img, absolute_position=False, connect_component=True):
@@ -141,6 +143,48 @@ def morph_operation(img):
     closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     return closing
 
+def bottom_inpainting(contour, frame):
+    img = frame.copy()
+    h, w, _ = img.shape
+    beg_x = contour[0, 0]
+    end_x = contour[-1, 0]
+
+    left_corner = [0, h]
+    right_corner = [w, h]
+    if beg_x > end_x:
+        contour = np.insert(contour, 0, right_corner, axis=0)
+        contour = np.append(contour, [left_corner], axis=0)
+    else:
+        contour = np.insert(contour, 0, left_corner, axis=0)
+        contour = np.append(contour, [right_corner], axis=0)
+
+    img = cv2.drawContours(img, [contour], -1, (0, 0, 0), -1)
+    return img
+
+def get_spine_top_contour(img, bottom_contour):
+    img_height, _, _ = img.shape
+    y_min = np.min(bottom_contour[:, 1])
+    crop_height = y_min - SPINE_OFFSET_VALUE
+    img_crop = img[crop_height:, :, :]
+    img_crop_gray = cv2.cvtColor(img_crop, cv2.COLOR_BGR2GRAY)
+
+    frame_array = np.array(img_crop_gray)
+    frame_array.flatten()
+    non_zero_array = frame_array[frame_array != 0]
+    thresh_value = np.percentile(non_zero_array, 65)
+
+    _, th = cv2.threshold(img_crop_gray, thresh_value, 255, cv2.THRESH_BINARY)
+    sorted_binary_cc_list = Case_2_Processing.sort_component_by_area(Case_2_Processing.get_binary_cc(th))
+    largest = sorted_binary_cc_list[-1]
+    top_contour = largest.get_contour_top()
+    top_contour[:, 1] = top_contour[:, 1] + crop_height
+    a = cv2.polylines(img, [top_contour], False, (255, 0, 0), 2)
+    cv2.imshow('a', a)
+    return top_contour
+
+
+
+
 
 def get_largest_connected_comp(binary_img, component_number=-2):
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(binary_img, connectivity=8)
@@ -158,7 +202,7 @@ def get_largest_connected_comp(binary_img, component_number=-2):
     return largest_only
 
 
-def findBottomContour(binary_image, imshow=True):
+def findBottomContour(binary_image, imshow=False):
     contours, _ = cv2.findContours(binary_image, 1, 2)
 
     counter = 0
@@ -177,7 +221,6 @@ def findBottomContour(binary_image, imshow=True):
     contour_x_min = np.min(contour_x)
     contour_x_max = np.max(contour_x)
 
-    # TODO: Veryfy that begin index is ALWAYS SMALLER than end index
     begin_index = np.where(largest_contour[:, 0] == contour_x_min)
     end_index = np.where(largest_contour[:, 0] == contour_x_max)
     begin_index = begin_index[0][0]
@@ -302,7 +345,7 @@ def top_half_sesgmentation(img):
     frame_array = np.array(frame)
     frame_array.flatten()
     non_zero_array = frame_array[frame_array != 0]
-    thresh_value = np.percentile(non_zero_array, 60)
+    thresh_value = np.percentile(non_zero_array, 75)
     _, th = cv2.threshold(frame, thresh_value, 255, cv2.THRESH_BINARY)
     return th
 
