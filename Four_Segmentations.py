@@ -6,8 +6,10 @@ import numpy as np
 from PCAsegmentation import main_wrapper
 from Case_1_binary_component import Class_1_binary_cc
 
-FILE_NAME = "New Videos/1-3.mp4"
+FILE_NAME = "New Videos/2-3.mp4"
 CASE_Num = 4
+SPINE_THICKNESS = 75
+from Case_1_Processing import extend_top_contour
 
 
 def connecting_contour_points(contour):
@@ -59,7 +61,7 @@ def find_height_difference(top_contour, template_x_center, template_y_center):
 
 
 if __name__ == "__main__":
-    state_list = main_wrapper(FILE_NAME)
+    # state_list = main_wrapper(FILE_NAME)
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
     videoWriter = cv2.VideoWriter("Case3.avi", fourcc, fps=30, frameSize=(616, 1080))
     cap = cv2.VideoCapture(FILE_NAME)
@@ -73,11 +75,11 @@ if __name__ == "__main__":
         if ret and counter == 1:
             frame = frame[140:965, :, :]
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            cv2.putText(frame, str(state_list[counter-1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            # cv2.putText(frame, str(state_list[counter-1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             template = Case_4_Processing.findLandMarkFeature(frame)
 
         elif ret:
-            cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            # cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             top_annotation = frame[0:140, :, :]
             bottom_annotation = frame[965:, :, :]
             frame = frame[140:965, :, :]
@@ -87,12 +89,17 @@ if __name__ == "__main__":
             except:
                 spine_contour = Case_4_Processing.get_spine_bottom_contour(frame, True, False)
 
-            bottom_inpainted = Case_4_Processing.bottom_inpainting(spine_contour, frame)
-            spine_top_contour = Case_4_Processing.get_spine_top_contour(bottom_inpainted, spine_contour)
+            # bottom_inpainted = Case_4_Processing.bottom_inpainting(spine_contour, frame)
+            spine_top_contour = spine_contour.copy()
+            spine_top_contour[:, 1] = spine_top_contour[:, 1] - int(SPINE_THICKNESS / 2)
+
+            if (counter == 254):
+                print()
 
 
             top_binary = Case_4_Processing.top_half_sesgmentation(frame)
             top_binary_bottom_contour = Case_4_Processing.findBottomContour(top_binary, True)
+            top_binary_bottom_contour =  connecting_contour_points(Case_4_Processing.extend_contour(top_binary_bottom_contour, frame))
             frame = cv2.polylines(frame, [top_binary_bottom_contour], False, (0, 0, 255), 2)
             # area = int(Case_4_Processing.find_area_enclosed(top_binary_bottom_contour, spine_contour, frame))
             # print(area)
@@ -109,8 +116,9 @@ if __name__ == "__main__":
             center = (center[0], center[1] + h)
             distance = Case_4_Processing.findDistance(center, top_binary_bottom_contour)
             intersect = (int(center[0]), int(center[1] - distance))
-            height_difference = find_height_difference(spine_top_contour, center[0], center[1])
-            cv2.line(frame, (center[0], center[1]-height_difference), intersect, (0, 0, 255), 3)
+            # height_difference = find_height_difference(spine_top_contour, center[0], center[1])
+            center = (center[0], center[1] - int(SPINE_THICKNESS / 2))
+            cv2.line(frame, center, intersect, (0, 0, 255), 3)
 
             length = np.linalg.norm([center[0]-intersect[0],  center[1]-intersect[1]])
             cv2.putText(frame, str(length), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)

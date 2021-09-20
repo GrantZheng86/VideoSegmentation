@@ -8,6 +8,7 @@ TOP_IMG_CROP = None
 BOTTOM_DETECTION_RATIO = 2
 ASPECT_RATIO = 2
 SPINE_OFFSET_VALUE = 75
+SPINE_THICKNESS = 30
 
 
 def get_spine_bottom_contour(img, absolute_position=False, connect_component=True):
@@ -143,6 +144,20 @@ def morph_operation(img):
     closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     return closing
 
+def extend_contour(contour, img):
+    h, w, _ = img.shape
+    beg_x = contour[0, 0]
+    beg_y = contour[0, 1]
+    end_x = contour[-1, 0]
+    end_y = contour[-1, 1]
+
+    if (beg_x > end_x):
+        contour = np.insert(contour, 0, [w, beg_y], axis=0)
+    else:
+        contour = np.append(contour, [[w, end_y]], axis=0)
+
+    return contour
+
 def bottom_inpainting(contour, frame):
     img = frame.copy()
     h, w, _ = img.shape
@@ -171,7 +186,7 @@ def get_spine_top_contour(img, bottom_contour):
     frame_array = np.array(img_crop_gray)
     frame_array.flatten()
     non_zero_array = frame_array[frame_array != 0]
-    thresh_value = np.percentile(non_zero_array, 65)
+    thresh_value = np.percentile(non_zero_array, 70)
 
     _, th = cv2.threshold(img_crop_gray, thresh_value, 255, cv2.THRESH_BINARY)
     sorted_binary_cc_list = Case_2_Processing.sort_component_by_area(Case_2_Processing.get_binary_cc(th))
