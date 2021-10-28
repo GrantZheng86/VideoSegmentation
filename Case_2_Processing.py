@@ -62,7 +62,7 @@ def get_bottom_two_parts(img, frame_num=0):
 def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number=0):
     # 1. Crop the bottom image out. If the cutoff line is more than half way up to the image. Then return -1 indicate
     # this is not a good image
-    kernel = np.ones((7, 7), np.uint8)
+    kernel = np.ones((5, 5), np.uint8)
     h, w = full_gray_img.shape
     if cutoff_height >= h / 2:
         bottom_gray = full_gray_img[h - cutoff_height:, :]
@@ -97,6 +97,12 @@ def bottom_two_parts_recursion_helper(full_gray_img, cutoff_height, frame_number
 
 
 def recursion_stop(binary_cc_list):
+    """
+    This function determines when the recursion for detecting the bottom section for case 2 should stop. Since we don't
+    care about the separateness of those two parts, there can be two smaller ones, or one large one.
+    :param binary_cc_list:
+    :return:
+    """
     largest = binary_cc_list[-1]
     second_largest = binary_cc_list[-2]
 
@@ -104,11 +110,11 @@ def recursion_stop(binary_cc_list):
     for each_cc in binary_cc_list:
         area_list.append(each_cc.area)
 
-    mean_area = np.average(area_list)
-    stdv_area = np.std(area_list)
     large_area_cutoff = 1750
+    single_connected_large_area_cutoff = large_area_cutoff * 3
 
     large_area_criteria = second_largest.area > large_area_cutoff
+    connected_large_area_criteria = largest.area > single_connected_large_area_cutoff
 
     largest_x = largest.centroid[0]
     second_x = second_largest.centroid[0]
@@ -126,6 +132,10 @@ def recursion_stop(binary_cc_list):
         top_cutoff_criteria = True
 
     if large_area_criteria and not top_cutoff_criteria and position_constraint:
+        # Handles the separate case
+        return True
+    elif connected_large_area_criteria and not largest.area_cutoff:
+        # Handles the connected case
         return True
     else:
         return False

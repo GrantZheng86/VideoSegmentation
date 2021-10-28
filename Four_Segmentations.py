@@ -6,7 +6,7 @@ import numpy as np
 from PCAsegmentation import main_wrapper
 from Case_1_binary_component import Class_1_binary_cc
 
-FILE_NAME = "New Videos/2-3.mp4"
+FILE_NAME = "New Videos/1-3.mp4"
 CASE_Num = 4
 SPINE_THICKNESS = 75
 from Case_1_Processing import extend_top_contour
@@ -61,7 +61,7 @@ def find_height_difference(top_contour, template_x_center, template_y_center):
 
 
 if __name__ == "__main__":
-    # state_list = main_wrapper(FILE_NAME)
+    state_list = main_wrapper(FILE_NAME)
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
     videoWriter = cv2.VideoWriter("Case3.avi", fourcc, fps=30, frameSize=(616, 1080))
     cap = cv2.VideoCapture(FILE_NAME)
@@ -75,11 +75,11 @@ if __name__ == "__main__":
         if ret and counter == 1:
             frame = frame[140:965, :, :]
             cv2.putText(frame, str(counter), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
-            # cv2.putText(frame, str(state_list[counter-1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, str(state_list[counter-1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             template = Case_4_Processing.findLandMarkFeature(frame)
 
         elif ret:
-            # cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            cv2.putText(frame, str(state_list[counter - 1]), (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
             top_annotation = frame[0:140, :, :]
             bottom_annotation = frame[965:, :, :]
             frame = frame[140:965, :, :]

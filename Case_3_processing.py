@@ -51,8 +51,8 @@ def show_point(point, frame):
     color = (0, 255, 255)
     annotated = cv2.circle(img, center, rad, color, -1)
     cv2.imshow('Point of Interest', annotated)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
 
 
 def get_bottom_contour(img, reduction=True):
@@ -126,7 +126,7 @@ def contour_reduction(largest_contour):
     :param largest_contour:
     :return:
     """
-    ep = 0.004 * cv2.arcLength(largest_contour, True)
+    ep = 0.007 * cv2.arcLength(largest_contour, True)
     approx = cv2.approxPolyDP(largest_contour, ep, True)
     bottom_half_contour = get_bottom_half(approx)
     # plot_contour_trend(bottom_half_contour)
@@ -251,7 +251,7 @@ def find_top_bottom_contour(top_portion, reduction=True):
         largest_contour = get_bottom_half(contours[largest_contour_index])
     contour_img = cv2.drawContours(cv2.cvtColor(largest_binary, cv2.COLOR_GRAY2BGR), contours, largest_contour_index, (0, 255, 0),
                                    2)
-    cv2.imshow('TOP', contour_img)
+    # cv2.imshow('TOP', contour_img)
 
     return largest_contour
 
