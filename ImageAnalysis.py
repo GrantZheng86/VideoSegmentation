@@ -57,9 +57,9 @@ def convert_to_bw(frame):
 def scale_calculation(frame):
     marker_width = 40
     useful_frame = frame[146:366, :, :]
-    cv2.imshow('a', useful_frame)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+    # cv2.imshow('a', useful_frame)
+    # cv2.waitKey(0)
+    # cv2.destroyAllWindows()
     useful_frame_bw = convert_to_bw(useful_frame)
 
     template_1 = cv2.imread(TEMPLATE_1_PATH)
@@ -98,10 +98,6 @@ def scale_calculation(frame):
     # print()
 
 
-
-
-
-
 if __name__ == "__main__":
 
     saving_dict = {}
@@ -113,6 +109,9 @@ if __name__ == "__main__":
         frame_no_marker = frame[147:926, 285:863, :]
         scale = scale_calculation(frame)
 
+        if "17ECT2.png" in image_name:
+            print()
+
         if CASE_2 in image_name:
             pass
             #
@@ -123,8 +122,13 @@ if __name__ == "__main__":
         else:
 
             successful_detection = True
+            print("Processing {}".format(image_name))
             try:
                 template = Case_3_processing.extract_template(frame_no_marker)
+                template_shape = template.shape
+
+                if 0 in template_shape:
+                    raise Exception('Not a valid template')
             except:
                 successful_detection = False
 

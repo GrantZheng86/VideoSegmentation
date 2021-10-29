@@ -61,7 +61,7 @@ def get_bottom_contour(img, reduction=True):
     img = img[h:, :]
     thresh_value = pixel_by_percentile(img, BOTTOM_PERCENTILE)
     _, th = cv2.threshold(img, thresh_value, 255, cv2.THRESH_BINARY)
-    th = morph_operation(th, kernel_size=5)
+    th = morph_operation(th, kernel_width=5, kernel_height=7)
     largest_binary = get_largest_cc(th)
     contours, _ = cv2.findContours(largest_binary, 1, 2)
     largest_contour_index = get_longest_contour(contours)
@@ -76,8 +76,11 @@ def get_bottom_contour(img, reduction=True):
     return largest_contour
 
 
-def morph_operation(img, kernel_size=3):
-    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_size, kernel_size))
+def morph_operation(img, kernel_height=3, kernel_width=None):
+    if kernel_width is None:
+        kernel_width = kernel_height
+
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_width, kernel_height))
     closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     return closing
 
@@ -249,9 +252,9 @@ def find_top_bottom_contour(top_portion, reduction=True):
         largest_contour = contour_reduction(contours[largest_contour_index])
     else:
         largest_contour = get_bottom_half(contours[largest_contour_index])
-    contour_img = cv2.drawContours(cv2.cvtColor(largest_binary, cv2.COLOR_GRAY2BGR), contours, largest_contour_index, (0, 255, 0),
+    contour_img = cv2.drawContours(cv2.cvtColor(largest_binary, cv2.COLOR_GRAY2BGR), [largest_contour], -1, (0, 255, 0),
                                    2)
-    # cv2.imshow('TOP', contour_img)
+    cv2.imshow('TOP', contour_img)
 
     return largest_contour
 

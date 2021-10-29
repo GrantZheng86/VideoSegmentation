@@ -144,6 +144,7 @@ def morph_operation(img):
     closing = cv2.morphologyEx(img, cv2.MORPH_CLOSE, kernel)
     return closing
 
+
 def extend_contour(contour, img):
     h, w, _ = img.shape
     beg_x = contour[0, 0]
@@ -157,6 +158,7 @@ def extend_contour(contour, img):
         contour = np.append(contour, [[w, end_y]], axis=0)
 
     return contour
+
 
 def bottom_inpainting(contour, frame):
     img = frame.copy()
@@ -175,6 +177,7 @@ def bottom_inpainting(contour, frame):
 
     img = cv2.drawContours(img, [contour], -1, (0, 0, 0), -1)
     return img
+
 
 def get_spine_top_contour(img, bottom_contour):
     img_height, _, _ = img.shape
@@ -196,9 +199,6 @@ def get_spine_top_contour(img, bottom_contour):
     a = cv2.polylines(img, [top_contour], False, (255, 0, 0), 2)
     cv2.imshow('a', a)
     return top_contour
-
-
-
 
 
 def get_largest_connected_comp(binary_img, component_number=-2):
@@ -365,10 +365,59 @@ def top_half_sesgmentation(img):
     return th
 
 
+def fill_contour(contour):
+    contour_x = contour[:, 0]
+    contour_y = contour[:, 1]
+
+    toReturn_x = []
+    toReturn_y = []
+
+    for i in range(len(contour_x) - 1):
+        curr_x = contour_x[i]
+        next_x = contour_x[i + 1]
+        curr_y = contour_y[i]
+        next_y = contour_y[i + 1]
+
+        if abs(next_x - curr_x) > 1:
+            x_array = [curr_x, next_x]
+            y_array = [curr_y, next_y]
+            z = np.polyfit(x_array, y_array, 1)
+            f = np.poly1d(z)
+
+            for x in range(curr_x, next_x):
+                y = f(x)
+                toReturn_x.append(x)
+                toReturn_y.append(y)
+
+        else:
+            toReturn_x.append(curr_x)
+            toReturn_y.append(curr_y)
+
+    toReturn_x.append(contour_x[-1])
+    toReturn_y.append(contour_y[-1])
+
+    toReturn = np.row_stack((toReturn_x, toReturn_y))
+    toReturn = np.transpose(toReturn.astype(np.uint32))
+    return toReturn
+
+
 def findDistance(center, bottom_contour, height_offset=0):
+    """
+    Find the distance from the template center (spine bump) to the top bottom contour.
+    :param center: The center location for the template, i.e. the spine bump
+    :param bottom_contour: The bottom contour of the upper portion
+    :param height_offset:
+    :return:
+    """
     x = center[0]
+    bottom_contour = fill_contour(bottom_contour)
     bottom_contour_x = bottom_contour[:, 0]
     bottom_contour_y = bottom_contour[:, 1]
+
+    max_x = np.max(bottom_contour_x)
+
+    if (x > max_x):
+        return -1
 
     range_beginning = 8
 
