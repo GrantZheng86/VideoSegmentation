@@ -12,11 +12,12 @@ FOLDER_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmen
 ORIGINAL_FILE = "ES & GS data Oct2021.xlsx"
 GENERATED_FILE = "information.csv"
 
+
 def find_correlation(generated, reformatted_original):
-
-    generated_list = []
-    original_list = []
-
+    generated_list_rest = []
+    original_list_rest = []
+    generates_list_con = []
+    original_list_con = []
 
     for i in range(len(generated)):
         curr_generated = generated.loc[i]
@@ -27,11 +28,15 @@ def find_correlation(generated, reformatted_original):
             original_data = reformatted_original.loc[name][0]
 
             if not math.isnan(original_data):
-                generated_list.append(data)
-                original_list.append(original_data)
 
-    return generated_list, original_list
+                if 'R' in name:
+                    generated_list_rest.append(data)
+                    original_list_rest.append(original_data)
+                else:
+                    generates_list_con.append(data)
+                    original_list_con.append(original_data)
 
+    return generated_list_rest, original_list_rest, generates_list_con, original_list_con
 
 
 def match_generated(original):
@@ -80,6 +85,15 @@ def match_generated(original):
     return pd.DataFrame.from_dict(original_dict, orient='index')
 
 
+def calculate_r_sq(computer, human):
+    z = np.polyfit(computer, human, 1)
+    f = np.poly1d(z)
+    predicted_human = f(computer)
+    ss_residual = sum(np.power(predicted_human - human, 2))
+    ss_total = sum(np.power(human - np.average(human), 2))
+    return 1 - ss_residual / ss_total
+
+
 if __name__ == "__main__":
     original = os.path.join(FOLDER_PATH, ORIGINAL_FILE)
     generated = os.path.join(FOLDER_PATH, GENERATED_FILE)
@@ -88,16 +102,58 @@ if __name__ == "__main__":
     generated = pd.read_csv(generated)
     original = match_generated(original_copy)
 
-    generated_list, original_list = find_correlation(generated, original)
+    generated_list, original_list, generated_list_con, original_list_con = find_correlation(generated, original)
     r2 = r2_score(generated_list, original_list)
 
     correlation_matrix = np.corrcoef(generated_list, original_list)
     correlation_xy = correlation_matrix[0, 1]
     r_squared = correlation_xy ** 2
 
+    correlation_matrix_con = np.corrcoef(generated_list_con, original_list_con)
+    correlation_xy_con = correlation_matrix_con[0, 1]
 
-    plt.plot(generated_list, original_list, 'ko')
-    plt.title("Correltation = {}".format(r_squared))
+    r_squared_con = correlation_xy_con ** 2
+
+    plt.plot(generated_list, original_list, 'ko', label="Relax")
+    plt.plot(generated_list_con, original_list_con, 'ro', label="Contract")
+    plt.legend()
+    plt.plot([1, 5], [1, 5], 'b--')
+
+    plt.title("Computer Analysis vs Human Annotation")
+    plt.text(3.5, 4.8, "Correlation = {:.5f}".format(r_squared))
+    plt.text(3.5, 4.5, "Correlation = {:.5f}".format(r_squared_con), color="red")
+
+    # plt.title("Computer detected vs Human annotated")
+    plt.xlim(1, 5)
+    plt.ylim(1, 5)
+    plt.grid()
+    plt.xlabel("Computer Analysis (CM)")
+    plt.ylabel("Human Labeled (CM)")
+
+    plt.figure(2)
+    plt.plot(generated_list, original_list, 'ko', label="Relax")
+    plt.legend()
+    plt.plot([1, 5], [1, 5], 'b--')
+    plt.title("Computer Analysis vs Human Annotation, Relaxed Case")
+    plt.xlim(1, 5)
+    plt.ylim(1, 5)
+    plt.grid()
+    plt.xlabel("Computer Analysis (CM)")
+    plt.ylabel("Human Labeled (CM)")
+    plt.text(3.5, 4.8, "Correlation = {:.5f}".format(r_squared))
+
+    plt.figure(3)
+    plt.plot(generated_list_con, original_list_con, 'ko', label="Contraction")
+    plt.legend()
+    plt.plot([1, 5], [1, 5], 'b--')
+    plt.title("Computer Analysis vs Human Annotation, Contraction Case")
+    plt.xlim(1, 5)
+    plt.ylim(1, 5)
+    plt.grid()
+    plt.xlabel("Computer Analysis (CM)")
+    plt.ylabel("Human Labeled (CM)")
+    plt.text(3.5, 4.8, "Correlation = {:.5f}".format(r_squared_con))
+
     plt.show()
 
     print()

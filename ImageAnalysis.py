@@ -1,3 +1,5 @@
+import os.path
+
 import cv2
 import glob
 import numpy as np
@@ -15,6 +17,8 @@ TEMPLATE_1_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSe
                   "ES & LM images & data Oct2021\\Template-1.png"
 TEMPLATE_2_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
                   "ES & LM images & data Oct2021\\Template-2.png"
+TEMPLATE_9_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
+                  "ES & LM images & data Oct2021\\Template-9.png"
 MARKER_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
               "ES & LM images & data Oct2021\\marker_template.png"
 IMAGE_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
@@ -22,6 +26,8 @@ IMAGE_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegment
 
 CSV_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
            "ES & LM images & data Oct2021\\information.csv"
+SAVING_FOLDER_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
+           "ES & LM images & data Oct2021\\SAVED_IMAGES"
 CASE_4 = 'E'  # Case 4 uses case 3 code
 CASE_2 = 'G'
 
@@ -52,6 +58,20 @@ def convert_to_bw(frame):
     _, frame = cv2.threshold(frame, 150, 255, cv2.THRESH_BINARY)
     frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
     return frame
+
+def detect_largest_scale(frame):
+    useful_frame_bw = convert_to_bw(frame)
+
+    template_9 = cv2.imread(TEMPLATE_9_PATH)
+    template_9_bw = convert_to_bw(template_9)
+    method = cv2.TM_CCORR_NORMED
+    res_9 = cv2.matchTemplate(useful_frame_bw, template_9_bw, method)
+    _, maxVal, _, top_left_9 = cv2.minMaxLoc(res_9)
+
+    if maxVal > 0.95:
+        return True
+    else:
+        return False
 
 
 def scale_calculation(frame):
@@ -91,7 +111,7 @@ def scale_calculation(frame):
     top_left_marker_1_abs = (top_left_1[0], top_left_1[1] + top_left_marker_1[1])
     top_left_marker_2_abs = (top_left_2[0], top_left_2[1] + top_left_marker_2[1])
 
-    return np.abs(top_left_marker_2_abs[1] - top_left_marker_2_abs[1])
+    return np.abs(top_left_marker_1_abs[1] - top_left_marker_2_abs[1])
 
     # visu = cv2.circle(useful_frame_bw, top_left_marker_1_abs, 2, (0, 255, 0), -1)
     # visu = cv2.circle(visu, top_left_marker_2_abs, 2, (0, 255, 0), -1)
@@ -108,8 +128,9 @@ if __name__ == "__main__":
         frame_with_marker = frame[147:926, 285:903, :]
         frame_no_marker = frame[147:926, 285:863, :]
         scale = scale_calculation(frame)
+        nine_or_eight = detect_largest_scale(frame)
 
-        if "17ECT2.png" in image_name:
+        if "24ECT3.png" in image_name:
             print()
 
         if CASE_2 in image_name:
@@ -150,15 +171,19 @@ if __name__ == "__main__":
 
                 top_contour = Case_3_processing.find_top_bottom_contour(non_tracking_frame, reduction=False)
                 center = (center[0], center[1] + non_tracking_frame_height)
-                distance = findDistance(center, top_contour)
+                height_offset = 50
+                distance = findDistance(center, top_contour)- height_offset
+                distance = float(distance) / float(scale)
                 intersect = (int(center[0]), int(center[1] - distance))
-                cv2.line(frame, center, intersect, (0, 0, 255), 3)
-                cv2.putText(frame, str(distance), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                # cv2.line(frame, center, intersect, (0, 0, 255), 3)
+                cv2.circle(frame, (center[0] , center[1]- height_offset), 3, (255, 255, 0), -1)
+                cv2.imwrite(os.path.join(SAVING_FOLDER_PATH, image_name), frame)
+                # cv2.putText(frame, str(distance), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 encirclement = np.concatenate((np.flip(top_contour, 0), bottom_contour))
                 frame = np.vstack((non_tracking_frame, tracking_frame))
                 saving_dict[image_name] = [distance]
 
-                # cv2.imshow("Template Matching", frame)
+
             else:
                 print("{} detection failed".format(image_name))
                 saving_dict[image_name] = [-1]
