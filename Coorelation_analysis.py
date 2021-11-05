@@ -111,7 +111,6 @@ if __name__ == "__main__":
 
     correlation_matrix_con = np.corrcoef(generated_list_con, original_list_con)
     correlation_xy_con = correlation_matrix_con[0, 1]
-
     r_squared_con = correlation_xy_con ** 2
 
     plt.plot(generated_list, original_list, 'ko', label="Relax")

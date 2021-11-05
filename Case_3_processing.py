@@ -30,14 +30,14 @@ def match_template(img, template):
 
 def extract_template(frame):
     img = frame.copy()
-    bottom_half_contour = get_bottom_contour(img)
+    bottom_half_contour, h = get_bottom_contour(img)
     feature_index = detect_feature(bottom_half_contour)
     feature_index += 1
     feature_point = bottom_half_contour[feature_index, :]
     template = crop_image_for_template(feature_point, frame)
     # cv2.imshow("Template", template)
     show_point(feature_point, frame)
-    return template
+    return template, h
 
 
 def show_point(point, frame):
@@ -56,6 +56,7 @@ def show_point(point, frame):
 
 
 def get_bottom_contour(img, reduction=True):
+    original_image = img.copy()
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     h = int((img.shape[0] / BOTTOM_FEATURE_RATIO) * (BOTTOM_FEATURE_RATIO - 1))
     img = img[h:, :]
@@ -69,11 +70,12 @@ def get_bottom_contour(img, reduction=True):
         largest_contour = contour_reduction(contours[largest_contour_index])
     else:
         largest_contour = get_bottom_half(contours[largest_contour_index])
-    contour_img = cv2.drawContours(cv2.cvtColor(largest_binary, cv2.COLOR_GRAY2BGR), [largest_contour], -1, (0, 255, 0),
+    contour_img = cv2.drawContours(cv2.cvtColor(img, cv2.COLOR_GRAY2BGR), [largest_contour], -1, (0, 255, 0),
                                    2)
     # cv2.imshow("Contour", contour_img)
+    # cv2.imshow("Original", original_image)
 
-    return largest_contour
+    return largest_contour, h
 
 
 def morph_operation(img, kernel_height=3, kernel_width=None):

@@ -145,7 +145,7 @@ if __name__ == "__main__":
             successful_detection = True
             print("Processing {}".format(image_name))
             try:
-                template = Case_3_processing.extract_template(frame_no_marker)
+                template, _ = Case_3_processing.extract_template(frame_no_marker)
                 template_shape = template.shape
 
                 if 0 in template_shape:
@@ -158,14 +158,14 @@ if __name__ == "__main__":
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
 
-                bottom_contour = Case_3_processing.get_bottom_contour(frame_no_marker, reduction=False)
-                non_tracking_frame_height = int(frame.shape[0] * Case_3_main.TEMPLATE_TRACKING_FRAME_RATIO)
-                tracking_frame = frame[non_tracking_frame_height:, :, :]
-                non_tracking_frame = frame[0:non_tracking_frame_height, :, :]
+                bottom_contour, h = Case_3_processing.get_bottom_contour(frame_no_marker, reduction=False)
+                non_tracking_frame_height = int(frame_no_marker.shape[0] * Case_3_main.TEMPLATE_TRACKING_FRAME_RATIO)
+                tracking_frame = frame_no_marker[non_tracking_frame_height:, :, :]
+                non_tracking_frame = frame_no_marker[0:non_tracking_frame_height, :, :]
                 top_left, bottom_right, center, max_val = Case_3_processing.match_template(tracking_frame, template)
                 tracking_frame = Case_3_processing.annotate_frame(tracking_frame, (top_left, bottom_right))
 
-                bottom_contour = Case_3_processing.correct_contour_path(bottom_contour, non_tracking_frame_height)
+                bottom_contour = Case_3_processing.correct_contour_path(bottom_contour, h)
                 if max_val < 0.81:
                     cv2.putText(frame, "Unreliable Tracking", (200, 600), cv2.FONT_HERSHEY_DUPLEX, 2, (255, 0, 255), 3)
 
@@ -176,11 +176,16 @@ if __name__ == "__main__":
                 distance = float(distance) / float(scale)
                 intersect = (int(center[0]), int(center[1] - distance))
                 # cv2.line(frame, center, intersect, (0, 0, 255), 3)
-                cv2.circle(frame, (center[0] , center[1]- height_offset), 3, (255, 255, 0), -1)
-                cv2.imwrite(os.path.join(SAVING_FOLDER_PATH, image_name), frame)
+                cv2.circle(frame_no_marker, (center[0] , center[1]- height_offset), 3, (255, 255, 0), -1)
+                cv2.polylines(frame_no_marker, [top_contour], isClosed=False, color=(255, 255, 0), thickness=2)
+                # bottom_contour[:, 0] += 285
+                # bottom_contour[:, 1] -= h
+                cv2.polylines(frame_no_marker, [bottom_contour], isClosed=False, color=(0, 0, 255), thickness=2)
+                cv2.imwrite(os.path.join(SAVING_FOLDER_PATH, image_name), frame_no_marker)
                 # cv2.putText(frame, str(distance), center, cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
                 encirclement = np.concatenate((np.flip(top_contour, 0), bottom_contour))
-                frame = np.vstack((non_tracking_frame, tracking_frame))
+                # frame_no_marker = np.vstack((non_tracking_frame, tracking_frame))
+                cv2.imshow('a', frame_no_marker)
                 saving_dict[image_name] = [distance]
 
 
