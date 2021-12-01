@@ -140,6 +140,7 @@ if __name__ == "__main__":
     plt.xlabel("Computer Analysis (CM)")
     plt.ylabel("Human Labeled (CM)")
     plt.text(3.5, 4.8, "Correlation = {:.5f}".format(r_squared))
+    plt.text(3.5, 4.6, "Number of samples {}".format(len(generated_list)))
 
     plt.figure(3)
     plt.plot(generated_list_con, original_list_con, 'ko', label="Contraction")
@@ -152,6 +153,7 @@ if __name__ == "__main__":
     plt.xlabel("Computer Analysis (CM)")
     plt.ylabel("Human Labeled (CM)")
     plt.text(3.5, 4.8, "Correlation = {:.5f}".format(r_squared_con))
+    plt.text(3.5, 4.6, "Number of samples {}".format(len(generated_list_con)))
 
     plt.show()
 

@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 BOTTOM_FEATURE_RATIO = 1.7
-BOTTOM_PERCENTILE = 50
+BOTTOM_PERCENTILE = 60
 ASPECT_RATIO = 2
 TEMPLATE_HEIGHT = 165
 

@@ -121,6 +121,7 @@ def scale_calculation(frame):
 if __name__ == "__main__":
 
     saving_dict = {}
+    total_files = 0
 
     for file_name in glob.glob('{}/*.png'.format(IMAGE_PATH)):
         image_name = file_name.split('\\')[-1]
@@ -158,7 +159,7 @@ if __name__ == "__main__":
                 # cv2.waitKey(0)
                 # cv2.destroyAllWindows()
 
-                bottom_contour, h = Case_3_processing.get_bottom_contour(frame_no_marker, reduction=False)
+                bottom_contour, h = Case_3_processing.get_bottom_contour(frame_no_marker, reduction=True)
                 non_tracking_frame_height = int(frame_no_marker.shape[0] * Case_3_main.TEMPLATE_TRACKING_FRAME_RATIO)
                 tracking_frame = frame_no_marker[non_tracking_frame_height:, :, :]
                 non_tracking_frame = frame_no_marker[0:non_tracking_frame_height, :, :]
@@ -193,5 +194,8 @@ if __name__ == "__main__":
                 print("{} detection failed".format(image_name))
                 saving_dict[image_name] = [-1]
 
+            total_files += 1
+
     to_save_df = pd.DataFrame.from_dict(saving_dict, orient='index')
     to_save_df.to_csv(CSV_PATH)
+    print(total_files)
