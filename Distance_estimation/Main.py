@@ -6,6 +6,7 @@ import Feature_Extraction
 
 IMAGE_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
              "ES & LM images & data Oct2021\\Images"
+LF_RATIO = 1 / 3  # meaning the upper 1/3 is for lumbodorsal fascia
 
 
 def crop_annotation(image, ruler=True):
@@ -118,6 +119,43 @@ def process_marker_image(file_name):
     return cv2.cvtColor(marker_image, cv2.COLOR_GRAY2BGR)
 
 
+def _show_template(img, ul, br, center, center_offset):
+    no_ruler_copy = img.copy()
+    no_ruler_copy = cv2.rectangle(no_ruler_copy, ul, br, (255, 0, 0), 2)
+    no_ruler_copy = cv2.circle(no_ruler_copy, thickness=1, color=(0, 0, 255), center=center_offset,
+                               radius=2)
+    no_ruler_copy = cv2.circle(no_ruler_copy, thickness=1, color=(0, 255, 255), center=center, radius=2)
+    cv2.imshow('Template', template)
+    cv2.imshow('Region of Interest', no_ruler_copy)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
+
+def _show_all_markers(box_ul, box_br, box_center, spine_contour, LF_contour, distance, img):
+    """
+    Shows all important markers in image
+    :param box_ul: Upper left of the template box
+    :param box_br: Bottom right of the template box
+    :param box_center: The center of the template box
+    :param spine_contour: Contour of spine (bottom of the image)
+    :param LF_contour: lumbodorsal fascia bottom contour
+    :param distance: Distance from the template center to the LF contour
+    :param img: The image to draw
+    :return:  Nothing
+    """
+    img_copy = img.copy()
+    img_copy = cv2.rectangle(img_copy, box_ul, box_br, (255, 0, 0), 2)
+    img_copy = cv2.circle(img_copy, thickness=1, color=(0, 0, 255), center=box_center, radius=5)
+    img_copy = cv2.polylines(img_copy, [spine_contour], False, (0, 255, 255), 2)
+    img_copy = cv2.polylines(img_copy, [LF_contour], False, (0, 255, 0), 2)
+
+    line_end_pos = (box_center[0], box_center[1] - distance)
+    img_copy = cv2.line(img_copy, box_center, line_end_pos, (255, 0, 255), 2)
+
+    cv2.imshow('All Markers', img_copy)
+    cv2.waitKey(0)
+
+
 if __name__ == "__main__":
 
     imshow = False
@@ -132,9 +170,10 @@ if __name__ == "__main__":
         frame = cv2.imread(file_name)
         frame_with_ruler = crop_annotation(frame, ruler=True)
         frame_wo_ruler = crop_annotation(frame, ruler=False)
+        successful_template_extraction = False
 
         if "E" in image_name:  # Case Erector Spine
-            spine_bottom_contour_for_show, h = Distance_measurement.get_bottom_contour(frame_wo_ruler, reduction=False,
+            spine_bottom_contour_for_show, _ = Distance_measurement.get_bottom_contour(frame_wo_ruler, reduction=False,
                                                                                        show=False)
             spine_bottom_contour_for_detection, _ = Distance_measurement.get_bottom_contour(frame_wo_ruler,
                                                                                             reduction=True,
@@ -142,23 +181,29 @@ if __name__ == "__main__":
             total_files += 1
             try:  # Try to look for features on the bottom of the spine
                 index_of_interest = Feature_Extraction.detect_feature(spine_bottom_contour_for_detection) + 1
-                template, ul, br, center, center_offset = Feature_Extraction.crop_template(index_of_interest,
-                                                                                           spine_bottom_contour_for_detection,
-                                                                                           frame_wo_ruler)
-
+                template, ul, br, center, center_offset = \
+                    Feature_Extraction.crop_template(index_of_interest, spine_bottom_contour_for_detection,
+                                                     frame_wo_ruler)
                 if imshow:
-                    no_ruler_copy = frame_wo_ruler.copy()
-                    no_ruler_copy = cv2.rectangle(no_ruler_copy, ul, br, (255, 0, 0), 2)
-                    no_ruler_copy = cv2.circle(no_ruler_copy, thickness=1, color=(0, 0, 255), center=center_offset, radius=2)
-                    no_ruler_copy = cv2.circle(no_ruler_copy, thickness=1, color=(0, 255, 255), center=center,
-                                               radius=2)
-                    cv2.imshow('Template', template)
-                    cv2.imshow('Region of Interest', no_ruler_copy)
-                    cv2.waitKey(0)
-                    cv2.destroyAllWindows()
+                    _show_template(frame_wo_ruler.copy(), ul, br, center, center_offset)
                 successful += 1
+                successful_template_extraction = True
             except TypeError:
                 print("{} Template Detection Unsuccessful".format(image_name))
                 unsuccessful += 1
+
+            if successful_template_extraction:
+                LF_region = frame_wo_ruler[0:int(frame_wo_ruler.shape[0] * LF_RATIO), :, :]
+                lumbodorsal_fascia_bottom, successful_LF_segmentation = \
+                    Distance_measurement.find_lumbodorsal_bottom(LF_region, imshow=False, reduction=False)
+
+                if not successful_LF_segmentation:
+                    print("LF seg failed {}".format(image_name))
+                else:
+                    # This portion need to be modified to search for the best location on the spine
+                    distance = Distance_measurement.findDistance(center_offset, lumbodorsal_fascia_bottom)
+                    print(distance)
+                    _show_all_markers(ul, br, center_offset, spine_bottom_contour_for_show, lumbodorsal_fascia_bottom,
+                                      int(distance), frame_wo_ruler)
 
     print("Successful detection {}, Unsuccessful detection {}, total{}".format(successful, unsuccessful, total_files))

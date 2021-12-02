@@ -7,6 +7,11 @@ TEMPLATE_CENTER_OFFSET = 50
 
 
 def average_slope(contour_window):
+    """
+    Calculates average slope of current sliding window
+    :param contour_window: The segment of contour in the current slope
+    :return:
+    """
     end_data = contour_window[-1]
     l = len(contour_window)
 
