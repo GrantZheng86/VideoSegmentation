@@ -3,9 +3,12 @@ import cv2
 import numpy as np
 import Distance_measurement
 import Feature_Extraction
+import pandas as pd
 
 IMAGE_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
              "ES & LM images & data Oct2021\\Images"
+CSV_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
+           "ES & LM images & data Oct2021\\information.csv"
 LF_RATIO = 1 / 3  # meaning the upper 1/3 is for lumbodorsal fascia
 
 
@@ -131,7 +134,7 @@ def _show_template(img, ul, br, center, center_offset):
     cv2.destroyAllWindows()
 
 
-def _show_all_markers(box_ul, box_br, box_center, spine_contour, LF_contour, distance, img):
+def _draw_all_markers(box_ul, box_br, measurement_base, spine_contour, LF_contour, distance, img, imshow=False):
     """
     Shows all important markers in image
     :param box_ul: Upper left of the template box
@@ -145,20 +148,23 @@ def _show_all_markers(box_ul, box_br, box_center, spine_contour, LF_contour, dis
     """
     img_copy = img.copy()
     img_copy = cv2.rectangle(img_copy, box_ul, box_br, (255, 0, 0), 2)
-    img_copy = cv2.circle(img_copy, thickness=1, color=(0, 0, 255), center=box_center, radius=5)
+    img_copy = cv2.circle(img_copy, thickness=1, color=(0, 0, 255), center=measurement_base, radius=5)
     img_copy = cv2.polylines(img_copy, [spine_contour], False, (0, 255, 255), 2)
     img_copy = cv2.polylines(img_copy, [LF_contour], False, (0, 255, 0), 2)
 
-    line_end_pos = (box_center[0], box_center[1] - distance)
-    img_copy = cv2.line(img_copy, box_center, line_end_pos, (255, 0, 255), 2)
+    line_end_pos = (measurement_base[0], measurement_base[1] - distance)
+    img_copy = cv2.line(img_copy, measurement_base, line_end_pos, (255, 0, 255), 2)
 
-    cv2.imshow('All Markers', img_copy)
-    cv2.waitKey(0)
+    if imshow:
+        cv2.imshow('All Markers', img_copy)
+        cv2.waitKey(0)
+
+    return img_copy
 
 
 if __name__ == "__main__":
 
-    imshow = False
+    show_template = False
 
     saving_dict = {}
     total_files = 0
@@ -184,7 +190,7 @@ if __name__ == "__main__":
                 template, ul, br, center, center_offset = \
                     Feature_Extraction.crop_template(index_of_interest, spine_bottom_contour_for_detection,
                                                      frame_wo_ruler)
-                if imshow:
+                if show_template:
                     _show_template(frame_wo_ruler.copy(), ul, br, center, center_offset)
                 successful += 1
                 successful_template_extraction = True
@@ -192,18 +198,30 @@ if __name__ == "__main__":
                 print("{} Template Detection Unsuccessful".format(image_name))
                 unsuccessful += 1
 
-            if successful_template_extraction:
+            if successful_template_extraction and 0 not in template.shape:
+                # After spine feature extraction, next step is to find the bottom contour of lumbodorsal fascia
                 LF_region = frame_wo_ruler[0:int(frame_wo_ruler.shape[0] * LF_RATIO), :, :]
                 lumbodorsal_fascia_bottom, successful_LF_segmentation = \
                     Distance_measurement.find_lumbodorsal_bottom(LF_region, imshow=False, reduction=False)
+                # The newly adjusted point for measurement, this is currently in its own coordinate
+                measurement_base_spine = Feature_Extraction.brightest_region(template, percentile=95)
+                # Convert the local coordinate to global
+                measurement_base_spine = (ul[0] + measurement_base_spine[0], measurement_base_spine[1] + ul[1])
+
 
                 if not successful_LF_segmentation:
                     print("LF seg failed {}".format(image_name))
                 else:
                     # This portion need to be modified to search for the best location on the spine
-                    distance = Distance_measurement.findDistance(center_offset, lumbodorsal_fascia_bottom)
-                    print(distance)
-                    _show_all_markers(ul, br, center_offset, spine_bottom_contour_for_show, lumbodorsal_fascia_bottom,
-                                      int(distance), frame_wo_ruler)
+                    distance = Distance_measurement.findDistance(measurement_base_spine, lumbodorsal_fascia_bottom)
+                    pixel_to_cm = scale_calculation(frame)
+                    img_with_drawing = _draw_all_markers(ul, br, measurement_base_spine, spine_bottom_contour_for_show,
+                                                         lumbodorsal_fascia_bottom,
+                                                         int(distance), frame_wo_ruler, False)
+                    physical_distance = float(distance) / float(pixel_to_cm)
+                    saving_dict[image_name] = [physical_distance]
+                    cv2.imwrite('../ES&LM_saved_images/{}_with_markers.jpg'.format(image_name), img_with_drawing)
 
     print("Successful detection {}, Unsuccessful detection {}, total{}".format(successful, unsuccessful, total_files))
+    to_save_df = pd.DataFrame.from_dict(saving_dict, orient='index')
+    to_save_df.to_csv(CSV_PATH)

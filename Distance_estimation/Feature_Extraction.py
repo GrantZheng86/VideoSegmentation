@@ -1,9 +1,11 @@
+import cv2
 import numpy as np
+from Distance_measurement import pixel_by_percentile
 
-TEMPLATE_HEIGHT = 75
-TEMPLATE_ASPECT_RATIO = 2
-TEMPLATE_WIDTH = TEMPLATE_ASPECT_RATIO * TEMPLATE_HEIGHT
-TEMPLATE_CENTER_OFFSET = 50
+TEMPLATE_HEIGHT = 100
+TEMPLATE_ASPECT_RATIO = 1.5
+TEMPLATE_WIDTH = int(TEMPLATE_ASPECT_RATIO * TEMPLATE_HEIGHT)
+TEMPLATE_CENTER_OFFSET = 75
 
 
 def average_slope(contour_window):
@@ -71,3 +73,35 @@ def crop_template(index_interest_contour, spine_bottom_contour, img):
     template = img[y_min:y_max, x_min:x_max, :]
 
     return template, (x_min, y_min), (x_max, y_max), (point_of_interest[0], point_of_interest[1]), center_offset
+
+def brightest_region(img, percentile=90):
+    """
+    Filters the template region by pixel percentile intensity
+    :param img: a BGR image of the template
+    :param percentile: the percentile above which that the user wants to keep
+    :return: The centroid of the largest connected component after thresholding. The original image is also annotated
+    """
+
+
+    image_section = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    thresh_value = pixel_by_percentile(image_section, percentile)
+    _, th = cv2.threshold(image_section, thresh_value, 255, cv2.THRESH_BINARY)
+    largest_cc_centroid = get_largest_cc(th)
+    th_color = cv2.cvtColor(th, cv2.COLOR_GRAY2BGR)
+    contours, _ = cv2.findContours(th, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+    th_color = cv2.drawContours(img, contours, -1, (255, 255, 0), 1)
+    th_color = cv2.circle(th_color, largest_cc_centroid, 4, (255, 100, 100), -1)
+    return largest_cc_centroid
+
+    # cv2.imshow('Brightest', np.hstack((th_color, img)))
+    # cv2.waitKey(0)
+
+def get_largest_cc(th_image):
+    connectivity = 4
+    # Perform the operation
+    retval, labels, stats, centroids = cv2.connectedComponentsWithStats(th_image, connectivity, cv2.CV_32S)
+
+    largest_cc_area = np.max(stats[1:, -1])
+    largest_cc_index = np.where(stats[:, -1] == largest_cc_area)[0][0]
+    return (int(centroids[largest_cc_index, 0]), int(centroids[largest_cc_index, 1]))
