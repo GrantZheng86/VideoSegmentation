@@ -52,7 +52,7 @@ def detect_feature(contour, window_size=4):
 
         if front_window_average > curr_value[1] and back_window_average > curr_value[
             1] and back_window_slope < 0 < front_window_slope:
-            return i + window_size
+            return i + window_size - 1
 
 
 def crop_template(index_interest_contour, spine_bottom_contour, img):
@@ -64,12 +64,16 @@ def crop_template(index_interest_contour, spine_bottom_contour, img):
     :return: Cropped template, Upper Left Template corner, bottom right template corner, Point of interest on the spine
             contour, and offseted center (actual) center of the template region
     """
+    h, w, _ = img.shape
     point_of_interest = spine_bottom_contour[index_interest_contour, :]
     center_offset = (point_of_interest[0], point_of_interest[1] - TEMPLATE_CENTER_OFFSET)
     x_min = center_offset[0] - TEMPLATE_WIDTH
     x_max = center_offset[0] + TEMPLATE_WIDTH
     y_min = center_offset[1] - TEMPLATE_HEIGHT
     y_max = center_offset[1] + TEMPLATE_HEIGHT
+
+    if x_min <= 0 or x_max >= w:
+        raise ValueError("Template out of the box")
     template = img[y_min:y_max, x_min:x_max, :]
 
     return template, (x_min, y_min), (x_max, y_max), (point_of_interest[0], point_of_interest[1]), center_offset

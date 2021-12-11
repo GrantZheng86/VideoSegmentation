@@ -194,7 +194,8 @@ if __name__ == "__main__":
                     _show_template(frame_wo_ruler.copy(), ul, br, center, center_offset)
                 successful += 1
                 successful_template_extraction = True
-            except TypeError:
+
+            except (TypeError, ValueError) as e:
                 print("{} Template Detection Unsuccessful".format(image_name))
                 unsuccessful += 1
 
@@ -214,13 +215,16 @@ if __name__ == "__main__":
                 else:
                     # This portion need to be modified to search for the best location on the spine
                     distance = Distance_measurement.findDistance(measurement_base_spine, lumbodorsal_fascia_bottom)
-                    pixel_to_cm = scale_calculation(frame)
-                    img_with_drawing = _draw_all_markers(ul, br, measurement_base_spine, spine_bottom_contour_for_show,
-                                                         lumbodorsal_fascia_bottom,
-                                                         int(distance), frame_wo_ruler, False)
-                    physical_distance = float(distance) / float(pixel_to_cm)
-                    saving_dict[image_name] = [physical_distance]
-                    cv2.imwrite('../ES&LM_saved_images/{}_with_markers.jpg'.format(image_name), img_with_drawing)
+
+                    if distance != -1:
+                        pixel_to_cm = scale_calculation(frame)
+                        img_with_drawing = _draw_all_markers(ul, br, measurement_base_spine, spine_bottom_contour_for_show,
+                                                             lumbodorsal_fascia_bottom,
+                                                             int(distance), frame_wo_ruler, False)
+                        # img_with_drawing = cv2.circle(img_with_drawing, center, 6, (0, 0, 255), -1)
+                        physical_distance = float(distance) / float(pixel_to_cm)
+                        saving_dict[image_name] = [physical_distance]
+                        cv2.imwrite('../ES&LM_saved_images/{}_with_markers.jpg'.format(image_name), img_with_drawing)
 
     print("Successful detection {}, Unsuccessful detection {}, total{}".format(successful, unsuccessful, total_files))
     to_save_df = pd.DataFrame.from_dict(saving_dict, orient='index')

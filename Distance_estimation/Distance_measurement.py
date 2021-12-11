@@ -59,16 +59,23 @@ def findDistance(center, bottom_contour):
     bottom_contour_y = bottom_contour[:, 1]
 
     max_x = np.max(bottom_contour_x)
+    min_x = np.min(bottom_contour_x)
 
-    if (x > max_x):
+    if (x > max_x) or (x < min_x):
         return -1
 
     range_beginning = 8
 
     in_range_index = np.where((x <= bottom_contour_x) & (bottom_contour_x < x + range_beginning))
+    maximum_iterations = 1e3
+
+    counter = 0
     while len(in_range_index[0]) <= 5:
         range_beginning += 1
         in_range_index = np.where((x <= bottom_contour_x) & (bottom_contour_x < x + range_beginning))
+        if counter > maximum_iterations:
+            return -1
+        counter += 1
 
     in_range_y = bottom_contour_y[in_range_index]
     avg_y = np.average(in_range_y)
@@ -159,7 +166,7 @@ def contour_reduction(largest_contour):
     :param largest_contour:
     :return: The bottom half of the approximated contour
     """
-    ep = 0.007 * cv2.arcLength(largest_contour, True)
+    ep = 0.005 * cv2.arcLength(largest_contour, True)
     approx = cv2.approxPolyDP(largest_contour, ep, True)
     bottom_half_contour = get_bottom_half(approx)
     # plot_contour_trend(bottom_half_contour)
@@ -220,7 +227,7 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     """
     successful_detection = False
     top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
-    value = pixel_by_percentile(top_portion, 60)
+    value = pixel_by_percentile(top_portion, BOTTOM_PERCENTILE)
     _, th = cv2.threshold(top_portion, value, 255, cv2.THRESH_BINARY)
     largest_binary = get_largest_cc(th)
     contours, _ = cv2.findContours(largest_binary, 1, 2)
