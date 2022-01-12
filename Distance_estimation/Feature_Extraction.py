@@ -2,8 +2,8 @@ import cv2
 import numpy as np
 from Distance_measurement import pixel_by_percentile
 
-TEMPLATE_HEIGHT = 100
-TEMPLATE_ASPECT_RATIO = 1.5
+TEMPLATE_HEIGHT = 85
+TEMPLATE_ASPECT_RATIO = 1.75
 TEMPLATE_WIDTH = int(TEMPLATE_ASPECT_RATIO * TEMPLATE_HEIGHT)
 TEMPLATE_CENTER_OFFSET = 75
 

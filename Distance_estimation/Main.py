@@ -4,6 +4,7 @@ import numpy as np
 import Distance_measurement
 import Feature_Extraction
 import pandas as pd
+import time
 
 IMAGE_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
              "ES & LM images & data Oct2021\\Images"
@@ -171,6 +172,7 @@ if __name__ == "__main__":
     successful = 0
     unsuccessful = 0
 
+    start = time.time()
     for file_name in glob.glob('{}/*.png'.format(IMAGE_PATH)):
         image_name = file_name.split('\\')[-1]
         frame = cv2.imread(file_name)
@@ -225,6 +227,8 @@ if __name__ == "__main__":
                         physical_distance = float(distance) / float(pixel_to_cm)
                         saving_dict[image_name] = [physical_distance]
                         cv2.imwrite('../ES&LM_saved_images/{}_with_markers.jpg'.format(image_name), img_with_drawing)
+    end = time.time()
+    print("Processing {} images used {}".format(total_files, start - end))
 
     print("Successful detection {}, Unsuccessful detection {}, total{}".format(successful, unsuccessful, total_files))
     to_save_df = pd.DataFrame.from_dict(saving_dict, orient='index')
