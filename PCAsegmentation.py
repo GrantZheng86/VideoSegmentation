@@ -27,7 +27,7 @@ def perform_pca(scaled_img):
     pca_image.fit(scaled_img)
     to_return = pca_image.transform(scaled_img)
     approx = pca_image.inverse_transform(to_return)
-    combined = np.hstack((approx, scaled_img))
+    combined = np.hstack((scaled_img, approx))
     # plt.imshow(combined, cmap='gray')
     # plt.show()
     return combined, to_return
@@ -36,7 +36,7 @@ def perform_pca(scaled_img):
 def write2Video(video_name):
     cap = cv2.VideoCapture(video_name)
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-    videoWriter = cv2.VideoWriter("output.avi", fourcc, fps=30, frameSize=(1150, 937))
+    videoWriter = cv2.VideoWriter("output_no_PCA.avi", fourcc, fps=30, frameSize=(575, 937))
     pca_list = []
     counter = 0
     while cap.isOpened():
@@ -50,6 +50,7 @@ def write2Video(video_name):
             pac_img = pac_img.astype(np.uint8)
             pac_img = cv2.cvtColor(pac_img, cv2.COLOR_GRAY2RGB)
             cv2.putText(pac_img, str(counter), (10, 20), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            pac_img = pac_img[:, 0:575, :]
             cv2.imshow("Processed", pac_img)
             videoWriter.write(pac_img)
 
@@ -113,8 +114,26 @@ def calculate_z_score(data_list, thresh=2):
         z_list.append(np.abs(curr_z))
         counter += 1
 
-    plt.plot(z_list)
-    plt.plot(threshed_sig)
+    fig, ax1 = plt.subplots()
+    color = 'tab:red'
+    ax1.set_xlabel('Frame')
+    ax1.set_ylabel('Raw PC Distance')
+    ax1.plot(z_list,  color=color)
+    ax1.tick_params(axis='y', labelcolor=color)
+
+    ax2 = ax1.twinx()
+    color = 'tab:blue'
+    ax2.set_ylabel('Thresholded PC Distance Change')
+    ax2.plot(threshed_sig, '--', color=color)
+    ax2.set_yticks([1, -1])
+    ax2.tick_params(axis='y', labelcolor=color)
+
+    fig.tight_layout()
+    # plt.plot(z_list, label="Raw Distance between PC")
+    # plt.plot(threshed_sig, label="Distance Change Thresholded")
+    # plt.legend(['Raw PC Distance', 'PC Distance Change Thresholded'])
+    # plt.xlabel('Frame')
+
     plt.show()
 
     return threshed_sig, rising_list
@@ -124,7 +143,7 @@ def write_state_to_video(video_name, state_change_list):
     cap = cv2.VideoCapture(video_name)
     total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
     fourcc = cv2.VideoWriter_fourcc('M', 'J', 'P', 'G')
-    videoWriter = cv2.VideoWriter("output_with_state.avi", fourcc, fps=30, frameSize=(1150, 937))
+    videoWriter = cv2.VideoWriter("output_with_state.avi", fourcc, fps=30, frameSize=(575, 937))
     counter = 0
     state_len = len(state_change_list)
     lag = total_frames - state_len
@@ -142,6 +161,7 @@ def write_state_to_video(video_name, state_change_list):
 
             state_list.append(state)
             cv2.putText(frame, str(state), (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+            frame = frame[:, 0:575, :]
             cv2.imshow("Processed", frame)
             videoWriter.write(frame)
 

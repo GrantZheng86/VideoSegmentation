@@ -1,10 +1,12 @@
+import shutil
+
 import cv2
 import numpy as np
 import glob
 import os
 import pytesseract
 
-IMAGE_FOLDER = 'RawImages'
+# IMAGE_FOLDER = 'RawImages'
 pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
 
 
@@ -49,10 +51,16 @@ def post_processing_words(words_list):
 
     # Test if LM is present in the second last word
     second_last_word = words_list[-2]
-    if 'LM' in second_last_word and len(second_last_word) > 2:
+    second_last_word_candidate = ['LM', 'GM', 'ES']
+    contains_candidate = False
+    for word_candidate in second_last_word_candidate:
+        if word_candidate in second_last_word:
+            contains_candidate = True
+            break
+    if contains_candidate and len(second_last_word) > 2:
         third_last_word = second_last_word[:-2]
         second_last_word = second_last_word[-2:]
-        assert second_last_word == 'LM'
+        # assert second_last_word == 'LM'
         insert_index = len(words_list) - 2
         del words_list[-2]
 
@@ -99,15 +107,16 @@ def valid_file_name(word_list):
         return False
 
     # Test Second position
-    second_word_candidate = ['BL', 'ES', '2WK', '4WK']
+    second_word_candidate = ['BL', 'ES', 'GM', '2WK', '4WK']
     second_word = word_list[1]
     if second_word not in second_word_candidate:
         return False
 
     # If the file has 4 words:
+    third_word_candidate = ['LM', 'GM', 'ES']
     if len(word_list) == 4:
         third_word = word_list[2]
-        if third_word != 'LM':
+        if third_word not in third_word_candidate:
             return False
 
     last_word = word_list[-1]
@@ -123,12 +132,17 @@ def valid_file_name(word_list):
     return True
 
 
-if __name__ == '__main__':
+def rename_images_in_folder(folder_path):
     saving_directory = r'renamed_images'
+    saving_directory = os.path.join(folder_path, saving_directory)
+
     if not os.path.exists(saving_directory):
         os.makedirs(saving_directory)
+    else:
+        shutil.rmtree(saving_directory)
+        os.makedirs(saving_directory)
 
-    for image_name in glob.glob('{}/*.png'.format(IMAGE_FOLDER)):
+    for image_name in glob.glob('{}/*.png'.format(folder_path)):
         image_bgr = cv2.imread(image_name)
         filtered_image = color_filter(image_bgr, debug=False)
         detected_text = pytesseract.image_to_string(filtered_image)
@@ -144,4 +158,15 @@ if __name__ == '__main__':
         cv2.imwrite(new_image_path, image_bgr)
 
 
+if __name__ == '__main__':
 
+    raw_image_all_directory = r'C:\Users\Grant\Downloads\DataU\DataU'
+
+    for curr_file in os.listdir(raw_image_all_directory):
+        d = os.path.join(raw_image_all_directory, curr_file)
+        if os.path.isdir(d):
+            print('Processing {}'.format(d))
+            rename_images_in_folder(d)
+
+    # test_folder = r'C:\Users\Grant\Downloads\DataU\DataU\P114WKMain_files'
+    # rename_images_in_folder(test_folder)

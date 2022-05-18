@@ -4,7 +4,7 @@ import Case_4_Processing
 from time import sleep
 import numpy as np
 from PCAsegmentation import main_wrapper
-from Case_1_binary_component import Class_1_binary_cc
+
 
 FILE_NAME = "New Videos/1-3.mp4"
 CASE_Num = 4
