@@ -6,10 +6,8 @@ import Feature_Extraction
 import pandas as pd
 import time
 
-IMAGE_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
-             "ES & LM images & data Oct2021\\Images"
-CSV_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
-           "ES & LM images & data Oct2021\\information.csv"
+IMAGE_PATH = "/home/grant/Documents/Medical_images/Processed Images/P1DUS_files/renamed_images"
+CSV_PATH = "/home/grant/Documents/Medical_images/Processed Images/P1DUS_files/renamed_imagesinformation.csv"
 LF_RATIO = 1 / 3  # meaning the upper 1/3 is for lumbodorsal fascia
 
 
@@ -29,10 +27,15 @@ def crop_annotation(image, ruler=True):
         y_start = 285
         y_end = 903
     else:
-        x_start = 147
-        x_end = 926
-        y_start = 285
-        y_end = 863
+        # x_start = 147
+        # x_end = 926
+        # y_start = 285
+        # y_end = 863
+
+        x_start = 131
+        x_end = 933
+        y_start = 2
+        y_end = 572
 
     return image[x_start:x_end, y_start:y_end, :]
 
@@ -57,12 +60,9 @@ def scale_calculation(frame):
     :return: The conversion factor
     """
 
-    TEMPLATE_1_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data " \
-                      "Oct2021\\ES & LM images & data Oct2021\\Template-1.png"
-    TEMPLATE_2_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data " \
-                      "Oct2021\\ES & LM images & data Oct2021\\Template-2.png"
-    MARKER_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
-                  "ES & LM images & data Oct2021\\marker_template.png"
+    TEMPLATE_1_PATH = "marker_templates/Template-1.png"
+    TEMPLATE_2_PATH = "marker_templates/Template-2.png"
+    MARKER_PATH = "marker_templates/marker_template.png"
 
     marker_width = 40
     useful_frame = frame[146:366, :, :]
@@ -174,7 +174,7 @@ if __name__ == "__main__":
     unsuccessful = 0
 
     start = time.time()
-    for file_name in glob.glob('{}/*.png'.format(IMAGE_PATH)):
+    for file_name in glob.glob('{}/*.jpg'.format(IMAGE_PATH)):
         image_name = file_name.split('\\')[-1]
         frame = cv2.imread(file_name)
         frame_with_ruler = crop_annotation(frame, ruler=True)
