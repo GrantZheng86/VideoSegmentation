@@ -1,13 +1,15 @@
+import argparse
 import glob
+import shutil
+
 import cv2
 import numpy as np
 import Distance_measurement
 import Feature_Extraction
 import pandas as pd
 import time
+import os
 
-IMAGE_PATH = "/home/grant/Documents/Medical_images/Processed Images/P1DUS_files/renamed_images"
-CSV_PATH = "/home/grant/Documents/Medical_images/Processed Images/P1DUS_files/renamed_imagesinformation.csv"
 LF_RATIO = 1 / 3  # meaning the upper 1/3 is for lumbodorsal fascia
 
 
@@ -65,7 +67,7 @@ def scale_calculation(frame):
     MARKER_PATH = "marker_templates/marker_template.png"
 
     marker_width = 40
-    useful_frame = frame[146:366, :, :]
+    useful_frame = frame[146:420, :, :]
     useful_frame_bw = convert_to_bw(useful_frame)
 
     template_1 = cv2.imread(TEMPLATE_1_PATH)
@@ -164,7 +166,18 @@ def _draw_all_markers(box_ul, box_br, measurement_base, spine_contour, LF_contou
 
 
 if __name__ == "__main__":
-    # TODO: aspect ratio change for new data
+    parser = argparse.ArgumentParser(description="Distance_estimation")
+    parser.add_argument('--folder_location', type=str, required=True)
+    args = parser.parse_args()
+
+    IMAGE_PATH = args.folder_location
+    CSV_PATH = os.path.join(IMAGE_PATH, 'image_distance_information.csv')
+    MARKED_IMAGES_DIR = os.path.join(IMAGE_PATH, 'marked_images')
+    if not os.path.exists(MARKED_IMAGES_DIR):
+        os.makedirs(MARKED_IMAGES_DIR)
+    else:
+        shutil.rmtree(MARKED_IMAGES_DIR)
+        os.makedirs(MARKED_IMAGES_DIR)
 
     show_template = False
 
@@ -182,6 +195,7 @@ if __name__ == "__main__":
         successful_template_extraction = False
 
         if "E" in image_name:  # Case Erector Spine
+
             spine_bottom_contour_for_show, _ = Distance_measurement.get_bottom_contour(frame_wo_ruler, reduction=False,
                                                                                        show=False)
             spine_bottom_contour_for_detection, _ = Distance_measurement.get_bottom_contour(frame_wo_ruler,
@@ -212,7 +226,6 @@ if __name__ == "__main__":
                 # Convert the local coordinate to global
                 measurement_base_spine = (ul[0] + measurement_base_spine[0], measurement_base_spine[1] + ul[1])
 
-
                 if not successful_LF_segmentation:
                     print("LF seg failed {}".format(image_name))
                 else:
@@ -220,14 +233,27 @@ if __name__ == "__main__":
                     distance = Distance_measurement.findDistance(measurement_base_spine, lumbodorsal_fascia_bottom)
 
                     if distance != -1:
+                        if 'P14 ES C1' in file_name:
+                            print()
                         pixel_to_cm = scale_calculation(frame)
-                        img_with_drawing = _draw_all_markers(ul, br, measurement_base_spine, spine_bottom_contour_for_show,
+                        img_with_drawing = _draw_all_markers(ul, br, measurement_base_spine,
+                                                             spine_bottom_contour_for_show,
                                                              lumbodorsal_fascia_bottom,
                                                              int(distance), frame_wo_ruler, False)
                         # img_with_drawing = cv2.circle(img_with_drawing, center, 6, (0, 0, 255), -1)
+                        print(pixel_to_cm)
+                        if pixel_to_cm  < 1:
+                            cv2.imshow('a', frame)
+                            cv2.waitKey(0)
+                            cv2.destroyAllWindows()
                         physical_distance = float(distance) / float(pixel_to_cm)
                         saving_dict[image_name] = [physical_distance]
-                        cv2.imwrite('../ES&LM_saved_images/{}_with_markers.jpg'.format(image_name), img_with_drawing)
+                        image_name = image_name.split('/')[-1]
+                        image_name = image_name.split('.')[0]
+                        image = cv2.putText(img_with_drawing, 'Distance: {:.1f} cm'.format(physical_distance), (50, 50),
+                                            cv2.FONT_HERSHEY_SIMPLEX,
+                                            1, (0, 255, 0), 1, cv2.LINE_AA)
+                        cv2.imwrite(MARKED_IMAGES_DIR + '/{}_with_markers.jpg'.format(image_name), img_with_drawing)
     end = time.time()
     print("Processing {} images used {}".format(total_files, start - end))
 

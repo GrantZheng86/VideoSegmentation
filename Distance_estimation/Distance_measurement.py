@@ -166,7 +166,7 @@ def contour_reduction(largest_contour):
     :param largest_contour:
     :return: The bottom half of the approximated contour
     """
-    ep = 0.005 * cv2.arcLength(largest_contour, True)
+    ep = 0.0025 * cv2.arcLength(largest_contour, True)
     approx = cv2.approxPolyDP(largest_contour, ep, True)
     bottom_half_contour = get_bottom_half(approx)
     # plot_contour_trend(bottom_half_contour)
