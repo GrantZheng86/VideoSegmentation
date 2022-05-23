@@ -164,6 +164,7 @@ def _draw_all_markers(box_ul, box_br, measurement_base, spine_contour, LF_contou
 
 
 if __name__ == "__main__":
+    # TODO: aspect ratio change for new data
 
     show_template = False
 
