@@ -94,6 +94,9 @@ def morph_closing(img_bw, kernel_height=3, kernel_width=None):
     if kernel_width is None:
         kernel_width = kernel_height
 
+    if (len(np.unique(img_bw)) != 2):
+        import matplotlib.pyplot as plt
+        plt.imshow(img_bw)
     assert len(np.unique(img_bw)) == 2, "Input image is not BW"
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (kernel_width, kernel_height))
     closing = cv2.morphologyEx(img_bw, cv2.MORPH_CLOSE, kernel)

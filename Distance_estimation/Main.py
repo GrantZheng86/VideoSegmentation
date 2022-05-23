@@ -66,8 +66,10 @@ def scale_calculation(frame):
     TEMPLATE_2_PATH = "marker_templates/Template-2.png"
     MARKER_PATH = "marker_templates/marker_template.png"
 
+    midway_height = int(frame.shape[0]/2)
+
     marker_width = 40
-    useful_frame = frame[146:420, :, :]
+    useful_frame = frame[146:midway_height, :, :]
     useful_frame_bw = convert_to_bw(useful_frame)
 
     template_1 = cv2.imread(TEMPLATE_1_PATH)
@@ -194,7 +196,8 @@ if __name__ == "__main__":
         frame_wo_ruler = crop_annotation(frame, ruler=False)
         successful_template_extraction = False
 
-        if "E" in image_name:  # Case Erector Spine
+        short_image_name = image_name.split('/')[-1]
+        if "E" in short_image_name:  # Case Erector Spine
 
             spine_bottom_contour_for_show, _ = Distance_measurement.get_bottom_contour(frame_wo_ruler, reduction=False,
                                                                                        show=False)
@@ -233,15 +236,12 @@ if __name__ == "__main__":
                     distance = Distance_measurement.findDistance(measurement_base_spine, lumbodorsal_fascia_bottom)
 
                     if distance != -1:
-                        if 'P14 ES C1' in file_name:
-                            print()
                         pixel_to_cm = scale_calculation(frame)
                         img_with_drawing = _draw_all_markers(ul, br, measurement_base_spine,
                                                              spine_bottom_contour_for_show,
                                                              lumbodorsal_fascia_bottom,
                                                              int(distance), frame_wo_ruler, False)
                         # img_with_drawing = cv2.circle(img_with_drawing, center, 6, (0, 0, 255), -1)
-                        print(pixel_to_cm)
                         if pixel_to_cm  < 1:
                             cv2.imshow('a', frame)
                             cv2.waitKey(0)
