@@ -252,7 +252,7 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     return largest_contour, successful_detection
 
 
-def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False):
+def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False, bottom_percentile=BOTTOM_PERCENTILE):
     """
     This method is specifically designed for case 4 to get the bottom contour.
     :param img:  A BGR image without any annotation or markers
@@ -265,7 +265,7 @@ def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False
     img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
     h = int((img.shape[0] / bottom_feature_ratio) * (bottom_feature_ratio - 1))
     img = img[h:, :]
-    thresh_value = pixel_by_percentile(img, BOTTOM_PERCENTILE)
+    thresh_value = pixel_by_percentile(img, bottom_percentile)
     _, th = cv2.threshold(img, thresh_value, 255, cv2.THRESH_BINARY)
     th = morph_closing(th, kernel_width=5, kernel_height=7)
     largest_binary = get_largest_cc(th)
