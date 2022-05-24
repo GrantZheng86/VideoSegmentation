@@ -6,12 +6,13 @@ import numpy as np
 import Distance_estimation.Distance_measurement
 import matplotlib.pyplot as plt
 
-ROOT_DIR = r'C:\Users\Zheng\Documents\Medical_Images\Processed Images\P1P3P8_files\renamed_images'
+ROOT_DIR = r'C:\Users\Zheng\Documents\Medical_Images\Processed Images\P13P14DUS_files\renamed_images'
 BANNER_HEIGHT = 140
 RULER_WIDTH = 40
 BOTTOM_HEIGHT = 200
 POOLING_SIZE = 10
 SLOPE_WINDOW = 7
+UPPER_RATIO = 1/3
 
 
 def crop_image_for_detection(img_gray):
@@ -20,12 +21,23 @@ def crop_image_for_detection(img_gray):
 
 
 def scale_contour(contour):
+    """
+    Scale the pooled contour back to the image size
+    :param contour: The contour from the pooled image
+    :return: a rescaled contour back into the original image scale
+    """
     contour = contour * POOLING_SIZE
     # contour = Distance_estimation.Distance_measurement.fill_contour(contour)
     return contour
 
 
 def find_average_slope(contour,  imshow=False):
+    """
+    Calculated a list of averaged contour. The average window is defined as a constant in the head of the file.
+    :param contour: The contour in the original image scale
+    :param imshow: Whether to show a plot of the calculated slope
+    :return: a list of averaged slope
+    """
     l, _ = contour.shape
     avg_slope_list = []
 
@@ -50,16 +62,24 @@ def find_average_slope(contour,  imshow=False):
     return avg_slope_list
 
 
-def visualize_contour(img, contour, point_of_interest_index=None):
+def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=None):
+    """
+    Showing the contour of the sping. with critical points for slope calculation, and an optional point of interest
+    :param img: The image in the original scale, can be either BW and GRAY
+    :param contour: The contour in the original scale
+    :param point_of_interest_index: Optional argument, the index of point in the contour
+    :return: None, just show image
+    """
     if len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
-    img_with_line = cv2.polylines(img, [contour], False, (0, 255, 0), 3)
+    img_with_line = cv2.polylines(img, [bottom_contour], False, (0, 255, 0), 3)
+    img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
 
-    for each_pt in contour:
+    for each_pt in bottom_contour:
         img_with_line = cv2.circle(img_with_line, (each_pt[0], each_pt[1]), 3, (0, 0, 255), 2)
     if point_of_interest_index is not None:
-        point_of_interest = contour[point_of_interest_index]
+        point_of_interest = bottom_contour[point_of_interest_index]
         img_with_line = cv2.circle(img_with_line, (point_of_interest[0], point_of_interest[1]), 5, (0, 255, 255), 5)
 
 
@@ -69,6 +89,14 @@ def visualize_contour(img, contour, point_of_interest_index=None):
 
 
 def find_point_of_interest(slope_list):
+    # TODO: From images from other folders, there's a pattern that has a single peak. Should the algorithm account
+    #  for this one?
+    """
+    Finds the index of point of interest from the slope list. This function can also throw exception when the contour
+    slope profile does not match the shape we want.
+    :param slope_list: A list of slope
+    :return: The index at which the point that represents the spine contour
+    """
     indices = np.arange(0, len(slope_list), 1, dtype=int)
     slope_with_indices = np.vstack((slope_list, indices))
     slope_with_indices = slope_with_indices.T
@@ -90,6 +118,18 @@ def find_point_of_interest(slope_list):
     point_of_interest = int((largest_slope[1] + second_largest_slope[1]) / 2)
     return point_of_interest
 
+def find_top_contour(img):
+    if len(img.shape) == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    upper_region = img[0:int(img.shape[0] * UPPER_RATIO), :]
+    upper_region_pooled = skimage.measure.block_reduce(upper_region, (POOLING_SIZE, POOLING_SIZE), np.min)
+    top_contour, successful_detection = Distance_estimation.Distance_measurement.find_lumbodorsal_bottom(upper_region_pooled, imshow=False, reduction=False)
+
+    if successful_detection:
+        return scale_contour(top_contour)
+
+    raise Exception('Top contour detection failed')
 
 if __name__ == '__main__':
 
@@ -107,13 +147,16 @@ if __name__ == '__main__':
             bottom_contour_filled = np.array(bottom_contour_filled, dtype=np.int32)
             avg_slope_list = find_average_slope(bottom_contour_filled)
 
+
             try:
                 point_of_interest = find_point_of_interest(avg_slope_list)
                 point_of_interest += int(SLOPE_WINDOW/2)
-                visualize_contour(img_gray, bottom_contour_filled, point_of_interest)
+                top_contour = find_top_contour(img_gray)
+                visualize_contour(img_gray, bottom_contour_filled, top_contour, point_of_interest)
+
             except:
                 print('{}detection failed'.format(shorter_img_name))
-                visualize_contour(img_gray, bottom_contour_filled)
+                visualize_contour(img_gray, bottom_contour_filled, top_contour)
                 plt.plot(avg_slope_list)
                 plt.show()
 

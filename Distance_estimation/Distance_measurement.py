@@ -229,7 +229,8 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     :return: The bottom contour of the Upper region of interest
     """
     successful_detection = False
-    top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
+    if len(top_portion.shape) == 3:
+        top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
     value = pixel_by_percentile(top_portion, BOTTOM_PERCENTILE)
     _, th = cv2.threshold(top_portion, value, 255, cv2.THRESH_BINARY)
     largest_binary = get_largest_cc(th)
