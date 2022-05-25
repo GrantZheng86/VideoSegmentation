@@ -6,11 +6,11 @@ import numpy as np
 import Distance_estimation.Distance_measurement
 import matplotlib.pyplot as plt
 
-ROOT_DIR = r'C:\Users\Zheng\Documents\Medical_Images\Processed Images\P13P14DUS_files\renamed_images'
+ROOT_DIR = r'C:\Users\Grant\Downloads\OneDrive_2022-05-23\Processed Images\P5P6P10_files\renamed_images'
 BANNER_HEIGHT = 140
 RULER_WIDTH = 40
 BOTTOM_HEIGHT = 200
-POOLING_SIZE = 10
+POOLING_SIZE = 12
 SLOPE_WINDOW = 7
 UPPER_RATIO = 1/3
 
@@ -26,6 +26,7 @@ def scale_contour(contour):
     :param contour: The contour from the pooled image
     :return: a rescaled contour back into the original image scale
     """
+    # contour = Distance_estimation.Distance_measurement.fill_contour(contour)
     contour = contour * POOLING_SIZE
     # contour = Distance_estimation.Distance_measurement.fill_contour(contour)
     return contour
@@ -74,7 +75,7 @@ def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     img_with_line = cv2.polylines(img, [bottom_contour], False, (0, 255, 0), 3)
-    img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
+    # img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
 
     for each_pt in bottom_contour:
         img_with_line = cv2.circle(img_with_line, (each_pt[0], each_pt[1]), 3, (0, 0, 255), 2)
@@ -89,8 +90,8 @@ def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=
 
 
 def find_point_of_interest(slope_list):
-    # TODO: From images from other folders, there's a pattern that has a single peak. Should the algorithm account
-    #  for this one?
+    # TODO: point of interest determination needs to be changed. Currently just taking the middle point of two max
+    #  values. This will lead to miss classification. 1. Better methods of finding peaks, instead of max values. 2. Considering pixel intensities
     """
     Finds the index of point of interest from the slope list. This function can also throw exception when the contour
     slope profile does not match the shape we want.
@@ -110,7 +111,7 @@ def find_point_of_interest(slope_list):
         second_largest_slope = slope_with_indices[-2 - loop_count]
         if loop_count > 4:
             raise Exception('Looping out of bounds, cannot find the template')
-        if np.abs(largest_slope[1] - second_largest_slope[1]) > 5:
+        if np.abs(largest_slope[1] - second_largest_slope[1]) > 4:
             found_bounds = True
         else:
             loop_count += 1
@@ -141,11 +142,14 @@ if __name__ == '__main__':
             img_gray = crop_image_for_detection(img_gray)
             img_gray_pooled = skimage.measure.block_reduce(img_gray, (POOLING_SIZE, POOLING_SIZE), np.min)
             img_gray_pooled = np.array(img_gray_pooled, dtype=np.uint8)
+            kernel = np.ones((1, 1), np.uint8)
+            img_gray_pooled = cv2.morphologyEx(img_gray_pooled, cv2.MORPH_OPEN, kernel)
             bottom_contour, h = Distance_estimation.Distance_measurement.get_bottom_contour(
                 cv2.cvtColor(img_gray_pooled, cv2.COLOR_GRAY2BGR), reduction=False, bottom_percentile=60)
             bottom_contour_filled = scale_contour(bottom_contour)
             bottom_contour_filled = np.array(bottom_contour_filled, dtype=np.int32)
             avg_slope_list = find_average_slope(bottom_contour_filled)
+
 
 
             try:
@@ -157,6 +161,7 @@ if __name__ == '__main__':
             except:
                 print('{}detection failed'.format(shorter_img_name))
                 visualize_contour(img_gray, bottom_contour_filled, top_contour)
-                plt.plot(avg_slope_list)
-                plt.show()
+
+            plt.plot(avg_slope_list)
+            plt.show()
 
