@@ -15,6 +15,8 @@ SLOPE_WINDOW = 5
 UPPER_RATIO = 1 / 3
 MINIMUM_WIDTH = 50
 
+# TODO: Make exception class to catch, don't use the generic exception to catch detection failure
+
 
 def crop_image_for_detection(img_gray):
     to_return = img_gray[BANNER_HEIGHT:-BOTTOM_HEIGHT, :-RULER_WIDTH]
@@ -66,7 +68,7 @@ def find_average_slope(contour, imshow=False):
         slope_list = []
         for j in range(SLOPE_WINDOW - i):
             try:
-                next_pt = contour[i+l+j]
+                next_pt = contour[i + l + j]
             except:
                 print()
             x_change = float(next_pt[0] - curr_pt[0])
@@ -79,7 +81,6 @@ def find_average_slope(contour, imshow=False):
         avg_slope_list.append(np.average(slope_list))
 
     avg_slope_list.append(avg_slope_list[-1])
-
 
     if imshow:
         plt.plot(avg_slope_list)
@@ -100,7 +101,7 @@ def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
 
     img_with_line = cv2.polylines(img, [bottom_contour], False, (0, 255, 0), 3)
-    # img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
+    img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
 
     for each_pt in bottom_contour:
         img_with_line = cv2.circle(img_with_line, (each_pt[0], each_pt[1]), 3, (0, 0, 255), 2)
@@ -145,12 +146,20 @@ def find_point_of_interest(slope_list):
 
 
 def find_point_of_interest_1(contour, img_gray, imshow=False):
+    """
+    This is a new way to search for point of interest. It resembles the way that human looks for it. It's looking to
+    find the brightest region first, then see the slope, and then compare the relative region in the image
+    :param contour: The contour, unfilled, of the bottom of the spine
+    :param img_gray: Gray image without any annotations
+    :param imshow: whether to show contour slop and bounding box to search for the brightest region
+    :return:
+    """
     if len(img_gray.shape) == 3:
         img_gray = cv2.cvtColor(img_gray, cv2.COLOR_BGR2GRAY)
 
     _, x_max = img_gray.shape
 
-    contour_slope = find_average_slope(contour, imshow=False)
+    contour_slope = find_average_slope(contour, imshow=imshow)
     indices = np.arange(0, len(contour_slope), 1, dtype=int)
     intensity_value = []
 
@@ -180,8 +189,6 @@ def find_point_of_interest_1(contour, img_gray, imshow=False):
             x = point_location[0]
             if x - MINIMUM_WIDTH > 0 and x + MINIMUM_WIDTH < x_max:
                 meet_spec = True
-
-
 
     return int(sorted_by_intensity[point_to_return][0])
 
@@ -251,5 +258,3 @@ if __name__ == '__main__':
             except:
                 print('{}detection failed'.format(shorter_img_name))
                 visualize_contour(img_gray, bottom_contour_filled, None)
-
-
