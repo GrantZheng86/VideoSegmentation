@@ -1,22 +1,27 @@
+import shutil
+
 import skimage.measure
 import cv2
 import glob
 import os
 import numpy as np
-import Distance_estimation.Distance_measurement
+import Distance_estimation.Distance_measurement as measurement
 import matplotlib.pyplot as plt
+import Distance_estimation.Detection_exception as DET
 
-ROOT_DIR = r'C:\Users\Zheng\Documents\Medical_Images\Processed Images\P12P13_files\renamed_images'
+ROOT_DIR = r'C:\Users\Grant\Downloads\OneDrive_2022-05-23\Processed Images\P1P3_files\renamed_images'
 BANNER_HEIGHT = 140
 RULER_WIDTH = 40
 BOTTOM_HEIGHT = 200
 POOLING_SIZE = 12
 SLOPE_WINDOW = 5
 UPPER_RATIO = 1 / 3
-MINIMUM_WIDTH = 50
+MINIMUM_WIDTH = 75
 
-# TODO: Make exception class to catch, don't use the generic exception to catch detection failure
-
+marked_frame_dir = os.path.join(ROOT_DIR, 'marked_frame')
+if os.path.exists(marked_frame_dir):
+    shutil.rmtree(marked_frame_dir)
+os.mkdir(marked_frame_dir)
 
 def crop_image_for_detection(img_gray):
     to_return = img_gray[BANNER_HEIGHT:-BOTTOM_HEIGHT, :-RULER_WIDTH]
@@ -44,7 +49,7 @@ def find_average_slope(contour, imshow=False):
     """
 
     if (len(contour) < SLOPE_WINDOW):
-        raise 'Insufficient contour length'
+        raise DET.DetectionException('Slope_calculation: Insufficient contour length')
     l, _ = contour.shape
     avg_slope_list = []
 
@@ -89,7 +94,8 @@ def find_average_slope(contour, imshow=False):
     return avg_slope_list
 
 
-def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=None):
+def visualize_contour(img, bottom_contour, top_contour=None, point_of_interest_index=None, height_offset=0, pixel_height=0,
+                      actual_height=0, imshow=True):
     """
     Showing the contour of the sping. with critical points for slope calculation, and an optional point of interest
     :param img: The image in the original scale, can be either BW and GRAY
@@ -99,7 +105,9 @@ def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=
     """
     if len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-
+    bottom_contour = bottom_contour + [0, height_offset]
+    if top_contour is not None:
+        top_contour = top_contour + [0, height_offset]
     img_with_line = cv2.polylines(img, [bottom_contour], False, (0, 255, 0), 3)
     img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
 
@@ -109,14 +117,19 @@ def visualize_contour(img, bottom_contour, top_contour, point_of_interest_index=
         point_of_interest = bottom_contour[point_of_interest_index]
         img_with_line = cv2.circle(img_with_line, (point_of_interest[0], point_of_interest[1]), 5, (0, 255, 255), 5)
 
-    cv2.imshow('Bottom Contour', img_with_line)
-    cv2.waitKey(0)
-    cv2.destroyAllWindows()
+        img_with_line = cv2.putText(img_with_line, '{:.2f}'.format(actual_height), (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.75, (0, 255, 0), 1, cv2.LINE_AA)
+        img_with_line = cv2.line(img_with_line, (point_of_interest[0], point_of_interest[1]),
+                                 (point_of_interest[0], int(point_of_interest[1]-pixel_height)   ), (0, 0, 255), 2)
+        if imshow:
+            cv2.imshow('Bottom Contour', img_with_line)
+            cv2.waitKey(0)
+            cv2.destroyAllWindows()
+
+    return img_with_line
 
 
 def find_point_of_interest(slope_list):
-    # TODO: point of interest determination needs to be changed. Currently just taking the middle point of two max
-    #  values. This will lead to miss classification. 1. Better methods of finding peaks, instead of max values. 2. Considering pixel intensities
     """
     Finds the index of point of interest from the slope list. This function can also throw exception when the contour
     slope profile does not match the shape we want.
@@ -135,7 +148,7 @@ def find_point_of_interest(slope_list):
     while not found_bounds:
         second_largest_slope = slope_with_indices[-2 - loop_count]
         if loop_count > 4:
-            raise Exception('Looping out of bounds, cannot find the template')
+            raise DET.DetectionException('Point of interest searching: looping out of bounds')
         if np.abs(largest_slope[1] - second_largest_slope[1]) > 4:
             found_bounds = True
         else:
@@ -177,6 +190,9 @@ def find_point_of_interest_1(contour, img_gray, imshow=False):
     meet_spec = False
     while not meet_spec:
         point_to_return -= 1
+
+        if np.abs(point_to_return)-1 >= len(sorted_by_intensity):
+            raise DET.DetectionException('Template_match mailed to find')
         curr_slope = sorted_by_intensity[point_to_return][1]
         curr_index = int(sorted_by_intensity[point_to_return][0])
         prev_index = int(sorted_by_intensity[point_to_return][0] - SLOPE_WINDOW)
@@ -222,14 +238,96 @@ def find_top_contour(img):
 
     upper_region = img[0:int(img.shape[0] * UPPER_RATIO), :]
     upper_region_pooled = skimage.measure.block_reduce(upper_region, (POOLING_SIZE, POOLING_SIZE), np.min)
-    top_contour, successful_detection = Distance_estimation.Distance_measurement.find_lumbodorsal_bottom(
+    top_contour, successful_detection = measurement.find_lumbodorsal_bottom(
         upper_region_pooled, imshow=False, reduction=False)
 
     if successful_detection:
         return scale_contour(top_contour)
 
-    raise Exception('Top contour detection failed')
+    raise DET.DetectionException('Top contour detection failed')
 
+def convert_to_bw(frame):
+    """
+    Converts the current BGR frame to a BW image with BGR Channel
+    :param frame: BGR image
+    :return: the original image in BW with all color channel
+    """
+    frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    _, frame = cv2.threshold(frame, 150, 255, cv2.THRESH_BINARY)
+    frame = cv2.cvtColor(frame, cv2.COLOR_GRAY2BGR)
+    return frame
+
+
+def scale_calculation(frame):
+    """
+    Calculates the conversion factor between pixel and actual distance. This method uses template matching, therefore,
+    pre-defined number templates are required
+    :param frame: A BGR image contains the right hand side ruler
+    :return: The conversion factor
+    """
+
+    TEMPLATE_1_PATH = "../marker_templates/Template-1.png"
+    TEMPLATE_2_PATH = "../marker_templates/Template-2.png"
+    MARKER_PATH = "../marker_templates/marker_template.png"
+
+    midway_height = int(frame.shape[0]/2)
+
+    marker_width = 40
+    useful_frame = frame[146:midway_height, :, :]
+    useful_frame_bw = convert_to_bw(useful_frame)
+
+    template_1 = cv2.imread(TEMPLATE_1_PATH)
+    template_1_bw = convert_to_bw(template_1)
+    template_2 = cv2.imread(TEMPLATE_2_PATH)
+    template_2_bw = convert_to_bw(template_2)
+
+    # Searching for matching locations for the templates. After getting locations for those numbers, expanding the
+    # region of interest to include tick marks on ruler for more precise distance calculation
+    h_1, w_1, _ = template_1_bw.shape
+    method = cv2.TM_CCORR_NORMED
+    res_1 = cv2.matchTemplate(useful_frame_bw, template_1_bw, method)
+    res_2 = cv2.matchTemplate(useful_frame_bw, template_2_bw, method)
+    _, _, _, top_left_1 = cv2.minMaxLoc(res_1)
+    _, _, _, top_left_2 = cv2.minMaxLoc(res_2)
+    bottom_right_1_with_marker = (top_left_1[0] + w_1 + marker_width, top_left_1[1] + h_1)
+    bottom_right_2_with_marker = (top_left_2[0] + w_1 + marker_width, top_left_2[1] + h_1)
+
+    # Searching for tick marks on ruler based on template matching, it uses the spacing between top left corners as the
+    # measure. This will have more precise measurement
+    marker_template = process_marker_image(MARKER_PATH)
+    marker_section_1 = useful_frame_bw[top_left_1[1]:bottom_right_1_with_marker[1],
+                       top_left_1[0]:bottom_right_1_with_marker[0], :]
+    marker_section_2 = useful_frame_bw[top_left_2[1]:bottom_right_2_with_marker[1],
+                       top_left_2[0]:bottom_right_2_with_marker[0], :]
+    res_marker_1 = cv2.matchTemplate(marker_section_1, marker_template, method)
+    res_marker_2 = cv2.matchTemplate(marker_section_2, marker_template, method)
+    _, _, _, top_left_marker_1 = cv2.minMaxLoc(res_marker_1)
+    _, _, _, top_left_marker_2 = cv2.minMaxLoc(res_marker_2)
+
+    top_left_marker_1_abs = (top_left_1[0], top_left_1[1] + top_left_marker_1[1])
+    top_left_marker_2_abs = (top_left_2[0], top_left_2[1] + top_left_marker_2[1])
+
+    return np.abs(top_left_marker_1_abs[1] - top_left_marker_2_abs[1])
+
+def process_marker_image(file_name):
+    """
+    Process the marker image on ruler so that the "sample marker" only contains the white portion. This is for better
+    template matching result when it comes for scale calculation
+    :param file_name: The template file for the marker
+    :return: A BGR version of the shrinked BW ruler marker
+    """
+    img = cv2.imread(file_name)
+    img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    _, img = cv2.threshold(img, 150, 255, cv2.THRESH_BINARY)
+    contour, _ = cv2.findContours(img, 1, 2)
+    contour = np.squeeze(contour[0])
+    left = np.min(contour[:, 0])
+    right = np.max(contour[:, 0])
+    up = np.min(contour[:, 1])
+    down = np.max(contour[:, 1])
+
+    marker_image = img[up:down, left:right]
+    return cv2.cvtColor(marker_image, cv2.COLOR_GRAY2BGR)
 
 if __name__ == '__main__':
 
@@ -243,18 +341,23 @@ if __name__ == '__main__':
             img_gray_pooled = np.array(img_gray_pooled, dtype=np.uint8)
             kernel = np.ones((1, 1), np.uint8)
             img_gray_pooled = cv2.morphologyEx(img_gray_pooled, cv2.MORPH_OPEN, kernel)
-            bottom_contour, h = Distance_estimation.Distance_measurement.get_bottom_contour(
+            bottom_contour, h = measurement.get_bottom_contour(
                 cv2.cvtColor(img_gray_pooled, cv2.COLOR_GRAY2BGR), reduction=False, bottom_percentile=60)
-            bottom_contour_filled = scale_contour(bottom_contour)
-            bottom_contour_filled = np.array(bottom_contour_filled, dtype=np.int32)
-            # avg_slope_list = find_average_slope(bottom_contour_filled, imshow=False)
-
+            bottom_contour = scale_contour(bottom_contour)
+            bottom_contour = np.array(bottom_contour, dtype=np.int32)
             try:
-                # point_of_interest = find_point_of_interest(avg_slope_list)
-                point_of_interest = find_point_of_interest_1(bottom_contour_filled, img_gray)
+                point_of_interest_index = find_point_of_interest_1(bottom_contour, img_gray)
+                point_of_interest = bottom_contour[point_of_interest_index]
                 top_contour = find_top_contour(img_gray)
-                visualize_contour(img_gray, bottom_contour_filled, top_contour, point_of_interest)
+                top_contour_filled = measurement.fill_contour(top_contour)
+                distance_p = measurement.findDistance(point_of_interest, top_contour_filled)
+                scale_cm_p = scale_calculation(img_bgr)
+                distance = distance_p / scale_cm_p
+                marked_frame = visualize_contour(img_bgr, bottom_contour, top_contour, point_of_interest_index,
+                                  height_offset=BANNER_HEIGHT, actual_height=distance, pixel_height=distance_p, imshow=False)
+                marked_frame_name = os.path.join(marked_frame_dir, shorter_img_name)
+                cv2.imwrite(marked_frame_name, marked_frame)
 
             except:
-                print('{}detection failed'.format(shorter_img_name))
-                visualize_contour(img_gray, bottom_contour_filled, None)
+                print('{} detection failed'.format(shorter_img_name))
+                visualize_contour(img_gray, bottom_contour, None)

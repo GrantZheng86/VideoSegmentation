@@ -4,7 +4,7 @@ import shutil
 
 import cv2
 import numpy as np
-import Distance_measurement
+import Distance_estimation.Distance_measurement as Distance_measurement
 import Feature_Extraction
 import pandas as pd
 import time

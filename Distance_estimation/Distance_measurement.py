@@ -23,6 +23,14 @@ def fill_contour(contour):
         curr_y = contour_y[i]
         next_y = contour_y[i + 1]
 
+        try:
+            test_number = abs(next_x - curr_x)
+
+            if test_number > 1000:
+                print()
+        except RuntimeWarning:
+            print()
+
         if abs(next_x - curr_x) > 1:
             x_array = [curr_x, next_x]
             y_array = [curr_y, next_y]
@@ -42,7 +50,7 @@ def fill_contour(contour):
     toReturn_y.append(contour_y[-1])
 
     toReturn = np.row_stack((toReturn_x, toReturn_y))
-    toReturn = np.transpose(toReturn.astype(np.uint32))
+    toReturn = np.transpose(toReturn.astype(np.int32))
     return toReturn
 
 
