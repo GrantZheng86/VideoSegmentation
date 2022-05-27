@@ -8,8 +8,9 @@ import numpy as np
 import Distance_estimation.Distance_measurement as measurement
 import matplotlib.pyplot as plt
 import Distance_estimation.Detection_exception as DET
+import pandas as pd
 
-ROOT_DIR = r'C:\Users\Grant\Downloads\OneDrive_2022-05-23\Processed Images\P1P3_files\renamed_images'
+ROOT_DIR = r'C:\Users\Grant\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs'
 BANNER_HEIGHT = 140
 RULER_WIDTH = 40
 BOTTOM_HEIGHT = 200
@@ -17,6 +18,7 @@ POOLING_SIZE = 12
 SLOPE_WINDOW = 5
 UPPER_RATIO = 1 / 3
 MINIMUM_WIDTH = 75
+MINIMUM_INDEX = 2
 
 marked_frame_dir = os.path.join(ROOT_DIR, 'marked_frame')
 if os.path.exists(marked_frame_dir):
@@ -200,11 +202,14 @@ def find_point_of_interest_1(contour, img_gray, imshow=False):
         prev_slope = None
         if prev_index > 0:
             prev_slope = contour_indices_intensity[prev_index][1]
+        # Make sure the point of interest have change of slow nearby
         if prev_slope is not None and prev_slope <= 0 <= curr_slope:
             point_location = contour[curr_index]
             x = point_location[0]
+            # Usually the point of interest will not be near the image boarder
             if x - MINIMUM_WIDTH > 0 and x + MINIMUM_WIDTH < x_max:
-                meet_spec = True
+                if MINIMUM_INDEX < curr_index < len(sorted_by_intensity) - MINIMUM_INDEX:
+                    meet_spec = True
 
     return int(sorted_by_intensity[point_to_return][0])
 
@@ -330,7 +335,8 @@ def process_marker_image(file_name):
     return cv2.cvtColor(marker_image, cv2.COLOR_GRAY2BGR)
 
 if __name__ == '__main__':
-
+    file_name_list = []
+    distance_measurement_list = []
     for raw_img in glob.glob(os.path.join(ROOT_DIR, '*.jpg')):
         shorter_img_name = raw_img.split('\\')[-1]
         if 'E' in shorter_img_name:
@@ -353,6 +359,8 @@ if __name__ == '__main__':
                 distance_p = measurement.findDistance(point_of_interest, top_contour_filled)
                 scale_cm_p = scale_calculation(img_bgr)
                 distance = distance_p / scale_cm_p
+                file_name_list.append(shorter_img_name)
+                distance_measurement_list.append(distance)
                 marked_frame = visualize_contour(img_bgr, bottom_contour, top_contour, point_of_interest_index,
                                   height_offset=BANNER_HEIGHT, actual_height=distance, pixel_height=distance_p, imshow=False)
                 marked_frame_name = os.path.join(marked_frame_dir, shorter_img_name)
@@ -361,3 +369,6 @@ if __name__ == '__main__':
             except:
                 print('{} detection failed'.format(shorter_img_name))
                 visualize_contour(img_gray, bottom_contour, None)
+    d = {'Img': file_name_list, 'Distance': distance_measurement_list}
+    df = pd.DataFrame(d)
+    df.to_csv(os.path.join(ROOT_DIR, 'information.csv'))
