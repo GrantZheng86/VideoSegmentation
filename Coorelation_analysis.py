@@ -7,10 +7,9 @@ from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 
-FOLDER_PATH = "C:\\Users\\Grant\\OneDrive - Colorado School of Mines\VideoSegmentation\\ES & LM images & data Oct2021\\" \
-              "ES & LM images & data Oct2021"
+FOLDER_PATH = r'C:\Users\Zheng\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021'
 ORIGINAL_FILE = "ES & GS data Oct2021.xlsx"
-GENERATED_FILE = "information.csv"
+GENERATED_FILE = r"C:\Users\Zheng\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs\information.csv"
 
 
 def find_correlation(generated, reformatted_original):
@@ -24,7 +23,8 @@ def find_correlation(generated, reformatted_original):
         name = curr_generated[0]
         data = curr_generated[1]
 
-        if data != -1 and "22" not in name:
+        if data > 0 and "22" not in name:
+            name = name.split('.')[0] + '.png'
             original_data = reformatted_original.loc[name][0]
 
             if not math.isnan(original_data):
@@ -96,7 +96,8 @@ def calculate_r_sq(computer, human):
 
 if __name__ == "__main__":
     original = os.path.join(FOLDER_PATH, ORIGINAL_FILE)
-    generated = os.path.join(FOLDER_PATH, GENERATED_FILE)
+    # generated = os.path.join(FOLDER_PATH, GENERATED_FILE)
+    generated = GENERATED_FILE
 
     original_copy = pd.read_excel(original)
     generated = pd.read_csv(generated)

@@ -91,6 +91,7 @@ def findDistance(center, bottom_contour):
 
     return distance
 
+
 def morph_closing(img_bw, kernel_height=3, kernel_width=None):
     """
     Performs a morphological closing. Removes potential breakages in contour
@@ -283,7 +284,7 @@ def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False
     if reduction:
         largest_contour = contour_reduction(contours[largest_contour_index])
     else:
-        largest_contour = get_bottom_half(contours[largest_contour_index])
+        largest_contour= get_bottom_half(contours[largest_contour_index])
 
     largest_contour[:, 1] += h
     if show:
@@ -293,3 +294,5 @@ def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False
         cv2.destroyAllWindows()
 
     return largest_contour, h
+
+

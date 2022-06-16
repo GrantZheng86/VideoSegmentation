@@ -10,20 +10,22 @@ import matplotlib.pyplot as plt
 import Distance_estimation.Detection_exception as DET
 import pandas as pd
 
-ROOT_DIR = r'C:\Users\Grant\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs'
+ROOT_DIR = r'C:\Users\Zheng\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs'
 BANNER_HEIGHT = 140
 RULER_WIDTH = 40
 BOTTOM_HEIGHT = 200
 POOLING_SIZE = 12
 SLOPE_WINDOW = 5
 UPPER_RATIO = 1 / 3
-MINIMUM_WIDTH = 75
+MINIMUM_WIDTH = 150
 MINIMUM_INDEX = 2
+SPINE_CONTOUR_OFFSET = -40
 
 marked_frame_dir = os.path.join(ROOT_DIR, 'marked_frame')
 if os.path.exists(marked_frame_dir):
     shutil.rmtree(marked_frame_dir)
 os.mkdir(marked_frame_dir)
+
 
 def crop_image_for_detection(img_gray):
     to_return = img_gray[BANNER_HEIGHT:-BOTTOM_HEIGHT, :-RULER_WIDTH]
@@ -96,7 +98,9 @@ def find_average_slope(contour, imshow=False):
     return avg_slope_list
 
 
-def visualize_contour(img, bottom_contour, top_contour=None, point_of_interest_index=None, height_offset=0, pixel_height=0,
+def visualize_contour(img, bottom_contour_spine, top_contour_spine, top_contour=None, point_of_interest_index=None,
+                      height_offset=0,
+                      pixel_height=0,
                       actual_height=0, imshow=True):
     """
     Showing the contour of the sping. with critical points for slope calculation, and an optional point of interest
@@ -107,22 +111,23 @@ def visualize_contour(img, bottom_contour, top_contour=None, point_of_interest_i
     """
     if len(img.shape) == 2:
         img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
-    bottom_contour = bottom_contour + [0, height_offset]
+    bottom_contour_spine = bottom_contour_spine + [0, height_offset]
+    top_contour_spine = top_contour_spine + [0, height_offset]
     if top_contour is not None:
         top_contour = top_contour + [0, height_offset]
-    img_with_line = cv2.polylines(img, [bottom_contour], False, (0, 255, 0), 3)
+    img_with_line = cv2.polylines(img, [bottom_contour_spine], False, (0, 255, 0), 3)
+    img_with_line = cv2.polylines(img_with_line, [top_contour_spine], False, (0, 255, 0), 2)
     img_with_line = cv2.polylines(img_with_line, [top_contour], False, (255, 255, 0), 3)
 
-    for each_pt in bottom_contour:
+    for each_pt in top_contour_spine:
         img_with_line = cv2.circle(img_with_line, (each_pt[0], each_pt[1]), 3, (0, 0, 255), 2)
     if point_of_interest_index is not None:
-        point_of_interest = bottom_contour[point_of_interest_index]
+        point_of_interest = top_contour_spine[point_of_interest_index]
         img_with_line = cv2.circle(img_with_line, (point_of_interest[0], point_of_interest[1]), 5, (0, 255, 255), 5)
-
         img_with_line = cv2.putText(img_with_line, '{:.2f}'.format(actual_height), (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
-                            0.75, (0, 255, 0), 1, cv2.LINE_AA)
+                                    0.75, (0, 255, 0), 1, cv2.LINE_AA)
         img_with_line = cv2.line(img_with_line, (point_of_interest[0], point_of_interest[1]),
-                                 (point_of_interest[0], int(point_of_interest[1]-pixel_height)   ), (0, 0, 255), 2)
+                                 (point_of_interest[0], int(point_of_interest[1] - pixel_height)), (0, 0, 255), 2)
         if imshow:
             cv2.imshow('Bottom Contour', img_with_line)
             cv2.waitKey(0)
@@ -179,7 +184,7 @@ def find_point_of_interest_1(contour, img_gray, imshow=False):
     intensity_value = []
 
     for pt in contour:
-        avg = pixel_average_around_point(img_gray, pt, imshow=imshow)
+        avg = pixel_average_around_point(img_gray, pt, imshow=False)
         intensity_value.append(avg)
 
     intensity_value = np.array(intensity_value)
@@ -193,7 +198,7 @@ def find_point_of_interest_1(contour, img_gray, imshow=False):
     while not meet_spec:
         point_to_return -= 1
 
-        if np.abs(point_to_return)-1 >= len(sorted_by_intensity):
+        if np.abs(point_to_return) - 1 >= len(sorted_by_intensity):
             raise DET.DetectionException('Template_match mailed to find')
         curr_slope = sorted_by_intensity[point_to_return][1]
         curr_index = int(sorted_by_intensity[point_to_return][0])
@@ -214,10 +219,65 @@ def find_point_of_interest_1(contour, img_gray, imshow=False):
     return int(sorted_by_intensity[point_to_return][0])
 
 
+def find_point_of_interest_2(contour, img_gray, imshow=False):
+    """
+    Similar to "find point of interest 1" method, this one uses the highest region as the 1st judging factor
+    :param contour: The contour, unfilled, of the bottom of the spine
+    :param img_gray: Gray image without any annotations
+    :param imshow: whether to show contour slop and bounding box to search for the brightest region
+    :return:
+    """
+    if len(img_gray.shape) == 3:
+        img_gray = cv2.cvtColor(img_gray, cv2.COLOR_BGR2GRAY)
+
+    _, x_max = img_gray.shape
+
+    contour_slope = find_average_slope(contour, imshow=imshow)
+    indices = np.arange(0, len(contour_slope), 1, dtype=int)
+
+    contour_indices_y = np.vstack((indices, contour_slope, contour[:, -1]))
+    contour_indices_y = contour_indices_y.T
+
+    sorted_by_y = contour_indices_y[contour[:, -1].argsort()]
+
+    point_to_return = -1
+    meet_spec = False
+    while not meet_spec:
+        point_to_return += 1
+
+        if np.abs(point_to_return) - 1 >= len(sorted_by_y):
+            raise DET.DetectionException('Template_match failed to find')
+        curr_slope = sorted_by_y[point_to_return][1]
+        curr_index = int(sorted_by_y[point_to_return][0])
+        prev_index = int(sorted_by_y[point_to_return][0] - SLOPE_WINDOW)
+
+        prev_slope = None
+        if prev_index > 0:
+            prev_slope = contour_indices_y[prev_index][1]
+        # Make sure the point of interest have change of slow nearby
+        # if prev_slope is not None and prev_slope <= 0 <= curr_slope:
+        #     point_location = contour[curr_index]
+        #     x = point_location[0]
+        #     # Usually the point of interest will not be near the image boarder
+        #     if x - MINIMUM_WIDTH > 0 and x + MINIMUM_WIDTH < x_max:
+        #         if MINIMUM_INDEX < curr_index < len(sorted_by_y) - MINIMUM_INDEX:
+        #             meet_spec = True
+
+
+        point_location = contour[curr_index]
+        x = point_location[0]
+        if x - MINIMUM_WIDTH > 0 and x + MINIMUM_WIDTH < x_max:
+            if MINIMUM_INDEX < curr_index < len(sorted_by_y) - MINIMUM_INDEX:
+                meet_spec = True
+
+    return int(sorted_by_y[point_to_return][0])
+
+
 def pixel_average_around_point(img, point, imshow=False):
     y_lim, x_lim = img.shape
-    BOX_LEN = 50
-    BOX_Y_OFFSET = -BOX_LEN / 2
+    BOX_LEN = 40
+    # BOX_Y_OFFSET = -BOX_LEN / 2
+    BOX_Y_OFFSET = 0
     x = point[0]
     y = point[1]
     x_min = int(np.max((x - BOX_LEN / 2, 0)))
@@ -251,6 +311,7 @@ def find_top_contour(img):
 
     raise DET.DetectionException('Top contour detection failed')
 
+
 def convert_to_bw(frame):
     """
     Converts the current BGR frame to a BW image with BGR Channel
@@ -275,7 +336,7 @@ def scale_calculation(frame):
     TEMPLATE_2_PATH = "../marker_templates/Template-2.png"
     MARKER_PATH = "../marker_templates/marker_template.png"
 
-    midway_height = int(frame.shape[0]/2)
+    midway_height = int(frame.shape[0] / 2)
 
     marker_width = 40
     useful_frame = frame[146:midway_height, :, :]
@@ -314,6 +375,7 @@ def scale_calculation(frame):
 
     return np.abs(top_left_marker_1_abs[1] - top_left_marker_2_abs[1])
 
+
 def process_marker_image(file_name):
     """
     Process the marker image on ruler so that the "sample marker" only contains the white portion. This is for better
@@ -334,6 +396,7 @@ def process_marker_image(file_name):
     marker_image = img[up:down, left:right]
     return cv2.cvtColor(marker_image, cv2.COLOR_GRAY2BGR)
 
+
 if __name__ == '__main__':
     file_name_list = []
     distance_measurement_list = []
@@ -347,13 +410,16 @@ if __name__ == '__main__':
             img_gray_pooled = np.array(img_gray_pooled, dtype=np.uint8)
             kernel = np.ones((1, 1), np.uint8)
             img_gray_pooled = cv2.morphologyEx(img_gray_pooled, cv2.MORPH_OPEN, kernel)
-            bottom_contour, h = measurement.get_bottom_contour(
+            bottom_contour_spine, h = measurement.get_bottom_contour(
                 cv2.cvtColor(img_gray_pooled, cv2.COLOR_GRAY2BGR), reduction=False, bottom_percentile=60)
-            bottom_contour = scale_contour(bottom_contour)
-            bottom_contour = np.array(bottom_contour, dtype=np.int32)
+            bottom_contour_spine = scale_contour(bottom_contour_spine)
+            bottom_contour_spine = np.array(bottom_contour_spine, dtype=np.int32)
+            #
+            top_contour_spine = bottom_contour_spine + [0, SPINE_CONTOUR_OFFSET]
             try:
-                point_of_interest_index = find_point_of_interest_1(bottom_contour, img_gray)
-                point_of_interest = bottom_contour[point_of_interest_index]
+                point_of_interest_index = find_point_of_interest_2(top_contour_spine, img_gray)
+
+                point_of_interest = top_contour_spine[point_of_interest_index]
                 top_contour = find_top_contour(img_gray)
                 top_contour_filled = measurement.fill_contour(top_contour)
                 distance_p = measurement.findDistance(point_of_interest, top_contour_filled)
@@ -361,14 +427,16 @@ if __name__ == '__main__':
                 distance = distance_p / scale_cm_p
                 file_name_list.append(shorter_img_name)
                 distance_measurement_list.append(distance)
-                marked_frame = visualize_contour(img_bgr, bottom_contour, top_contour, point_of_interest_index,
-                                  height_offset=BANNER_HEIGHT, actual_height=distance, pixel_height=distance_p, imshow=False)
+                marked_frame = visualize_contour(img_bgr, bottom_contour_spine, top_contour_spine,
+                                                 top_contour, point_of_interest_index,
+                                                 height_offset=BANNER_HEIGHT, actual_height=distance,
+                                                 pixel_height=distance_p, imshow=False)
                 marked_frame_name = os.path.join(marked_frame_dir, shorter_img_name)
                 cv2.imwrite(marked_frame_name, marked_frame)
 
             except:
                 print('{} detection failed'.format(shorter_img_name))
-                visualize_contour(img_gray, bottom_contour, None)
+                # visualize_contour(img_gray, top_contour_spine, None)
     d = {'Img': file_name_list, 'Distance': distance_measurement_list}
     df = pd.DataFrame(d)
-    df.to_csv(os.path.join(ROOT_DIR, 'information.csv'))
+    df.to_csv(os.path.join(ROOT_DIR, 'information.csv'), index=False)
