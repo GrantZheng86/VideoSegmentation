@@ -10,7 +10,8 @@ import matplotlib.pyplot as plt
 import Distance_estimation.Detection_exception as DET
 import pandas as pd
 
-ROOT_DIR = r'C:\Users\Zheng\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs'
+# ROOT_DIR = r'C:\Users\Grant\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs'
+ROOT_DIR = r'C:\Users\Grant\PycharmProjects\VideoSegmentation\Jul_9_analysis\Regrouped_images'
 BANNER_HEIGHT = 140
 RULER_WIDTH = 40
 BOTTOM_HEIGHT = 200
@@ -400,9 +401,11 @@ def process_marker_image(file_name):
 if __name__ == '__main__':
     file_name_list = []
     distance_measurement_list = []
+    image_count = 0
     for raw_img in glob.glob(os.path.join(ROOT_DIR, '*.jpg')):
         shorter_img_name = raw_img.split('\\')[-1]
         if 'E' in shorter_img_name:
+            image_count += 1
             img_bgr = cv2.imread(raw_img)
             img_gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
             img_gray = crop_image_for_detection(img_gray)
@@ -440,3 +443,4 @@ if __name__ == '__main__':
     d = {'Img': file_name_list, 'Distance': distance_measurement_list}
     df = pd.DataFrame(d)
     df.to_csv(os.path.join(ROOT_DIR, 'information.csv'), index=False)
+    print(image_count)

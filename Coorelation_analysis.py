@@ -7,9 +7,9 @@ from sklearn.metrics import r2_score
 import matplotlib.pyplot as plt
 from sklearn.linear_model import LinearRegression
 
-FOLDER_PATH = r'C:\Users\Zheng\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021'
+FOLDER_PATH = r'C:\Users\Grant\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021'
 ORIGINAL_FILE = "ES & GS data Oct2021.xlsx"
-GENERATED_FILE = r"C:\Users\Zheng\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs\information.csv"
+GENERATED_FILE = r"C:\Users\Grant\OneDrive - Colorado School of Mines\VideoSegmentation\ES & LM images & data Oct2021\ES & LM images & data Oct2021\Images\cropped_imgs\information.csv"
 
 
 def find_correlation(generated, reformatted_original):
