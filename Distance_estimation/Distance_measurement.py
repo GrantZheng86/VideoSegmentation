@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 BOTTOM_PERCENTILE = 60
 
@@ -232,11 +233,15 @@ def get_bottom_half(contour):
 
 def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     """
+    *** USING THIS METHOD IS DISCOURAGED, IT DOES NOT PRODUCE RELIABLE UPPER BOUNDARY ***
     For Case 4, this finds the bottom contour of the Lumodorsal Fascia
     :param top_portion: The top portion of the no ruler image to do the segmentation
     :param reduction: whether to use reduction to appriximate contour
     :return: The bottom contour of the Upper region of interest
     """
+
+    from warnings import warn
+    warn("Using this method to find upper boundary is discouraged, use find_lumbodorsal_bottom_1 instead")
     successful_detection = False
     if len(top_portion.shape) == 3:
         top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
@@ -260,6 +265,45 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
         successful_detection = True
 
     return largest_contour, successful_detection
+
+def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
+    successful_detection = False
+    kernel_size = 25
+    if len(top_portion.shape) == 3:
+        top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
+
+    sobely = cv2.Sobel(top_portion, cv2.CV_64F, 0, 1, ksize=kernel_size)
+    sobely -= sobely.min()
+    sobely /= sobely.max()
+    sobely *= 255
+    sobely = np.array(sobely, dtype=np.uint8)
+
+    sobely_edge = cv2.Canny(sobely, 50, 210)
+    processed_img = cv2.GaussianBlur(top_portion, (5, 5), 0)
+    plt.subplot(2, 3, 1), plt.imshow(top_portion, cmap='gray')
+    plt.subplot(2, 3, 2), plt.imshow(sobely)
+    plt.subplot(2, 3, 3), plt.imshow(sobely_edge)
+    plt.subplot(2, 3, 4), plt.imshow(processed_img, cmap='gray')
+
+    plt.title(figure_name)
+    figManager = plt.get_current_fig_manager()
+    figManager.window.showMaximized()
+    plt.show()
+
+def image_enchangement(img):
+
+    kernel_size = 5
+    g_func = lambda scale, x_g, y_g: 1./(1. + (np.power(x_g, 2) + (np.power(y_g, 2)) / (scale ** 2)))
+
+
+    for i in range(5000):
+        x_grad = cv2.Sobel(img, cv2.CV_64F, 1, 0, ksize=kernel_size)
+        y_grad = cv2.Sobel(img, cv2.CV_64F, 0, 1, ksize=kernel_size)
+        g_val = g_func(2, x_grad, y_grad)
+
+
+
+
 
 
 def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False, bottom_percentile=BOTTOM_PERCENTILE):
