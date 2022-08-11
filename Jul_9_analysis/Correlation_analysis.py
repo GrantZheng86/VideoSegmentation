@@ -43,10 +43,13 @@ if __name__ == '__main__':
     relaxed_ground_truth_list = []
     contracted_measured_list = []
     relaxed_measured_list = []
+    relaxed_name_list = []
+    contracted_name_list = []
 
     total_samples = 0
     for i in range(measured_counts):
         img_name = computer_measurements['Img'][i]
+        img_name_original = img_name
         measured_distance = computer_measurements['Distance'][i]
         img_name = img_name.split('.')[0]
         img_name = img_name.split(' ')
@@ -72,9 +75,11 @@ if __name__ == '__main__':
                     if c_or_r == 'C':
                         contracted_measured_list.append(measured_distance)
                         contracted_ground_truth_list.append(curr_ground_truth)
+                        contracted_name_list.append(img_name_original)
                     else:
                         relaxed_measured_list.append(measured_distance)
                         relaxed_ground_truth_list.append(curr_ground_truth)
+                        relaxed_name_list.append(img_name_original)
 
     contracted_correlation_matrix = np.corrcoef(contracted_measured_list, contracted_ground_truth_list)
     contracted_correlation_xy = contracted_correlation_matrix[0, 1]

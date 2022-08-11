@@ -1,5 +1,6 @@
 import cv2
 import numpy as np
+import matplotlib.pyplot as plt
 
 BOTTOM_PERCENTILE = 60
 
@@ -236,7 +237,11 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     :param top_portion: The top portion of the no ruler image to do the segmentation
     :param reduction: whether to use reduction to appriximate contour
     :return: The bottom contour of the Upper region of interest
+
+    *** THIS IS AN OUTDATED METHOD ***
     """
+    from warnings import warn
+    warn("This method of finding upper boundary is depreciated, use the new one instead")
     successful_detection = False
     if len(top_portion.shape) == 3:
         top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
@@ -260,6 +265,20 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
         successful_detection = True
 
     return largest_contour, successful_detection
+
+def find_lumbodorsal_bottom_1(top_portion, imshow=False):
+    successful_detection = False
+    if len(top_portion.shape) == 3:
+        top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
+
+    laplacian = cv2.Laplacian(top_portion, cv2.CV_64F, ksize=15)
+    sobely = cv2.Sobel(top_portion, cv2.CV_64F, 0, 1, ksize=15)
+    plt.subplot(2, 2, 1), plt.imshow(top_portion, cmap='gray')
+    plt.subplot(2, 2, 2), plt.imshow(laplacian, cmap='gray')
+    plt.subplot(2, 2, 3), plt.imshow(sobely, cmap='gray')
+    plt.show()
+    print()
+
 
 
 def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False, bottom_percentile=BOTTOM_PERCENTILE):
