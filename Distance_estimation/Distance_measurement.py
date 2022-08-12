@@ -279,11 +279,26 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     sobely = np.array(sobely, dtype=np.uint8)
 
     sobely_edge = cv2.Canny(sobely, 50, 210)
-    processed_img = cv2.GaussianBlur(top_portion, (5, 5), 0)
-    plt.subplot(2, 3, 1), plt.imshow(top_portion, cmap='gray')
-    plt.subplot(2, 3, 2), plt.imshow(sobely)
-    plt.subplot(2, 3, 3), plt.imshow(sobely_edge)
-    plt.subplot(2, 3, 4), plt.imshow(processed_img, cmap='gray')
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(sobely, connectivity=8)
+    plt.subplot(1, 3, 1), plt.imshow(top_portion, cmap='gray')
+    plt.subplot(1, 3, 2), plt.imshow(sobely)
+    plt.subplot(1, 3, 3), plt.imshow(sobely_edge, cmap='gray')
+
+    minLineLength = 2
+    maxLineGap = 5
+    lines = cv2.HoughLinesP(sobely_edge, cv2.HOUGH_PROBABILISTIC, np.pi / 180, 2, minLineLength, maxLineGap)
+
+    top_color = cv2.cvtColor(top_portion, cv2.COLOR_GRAY2BGR)
+    for x in range(0, len(lines)):
+        for x1, y1, x2, y2 in lines[x]:
+            # cv2.line(inputImage,(x1,y1),(x2,y2),(0,128,0),2, cv2.LINE_AA)
+            pts = np.array([[x1, y1], [x2, y2]], np.int32)
+            top_color = cv2.polylines(top_color, [pts], True, (0, 255, 0))
+
+    cv2.imshow('Line_seg', top_color)
+    cv2.waitKey(0)
+    cv2.destoryAllWindows()
+
 
     plt.title(figure_name)
     figManager = plt.get_current_fig_manager()
