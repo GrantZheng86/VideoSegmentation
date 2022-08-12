@@ -1,4 +1,5 @@
 import shutil
+
 import skimage.measure
 import cv2
 import glob
@@ -17,7 +18,7 @@ BOTTOM_HEIGHT = 200
 POOLING_SIZE = 12
 SLOPE_WINDOW = 5
 UPPER_RATIO = 1 / 3
-MINIMUM_WIDTH = 200
+MINIMUM_WIDTH = 150
 MINIMUM_INDEX = 2
 SPINE_CONTOUR_OFFSET = -40
 
@@ -297,13 +298,14 @@ def pixel_average_around_point(img, point, imshow=False):
     return np.average(area)
 
 
-def find_top_contour(img):
+def find_top_contour(img, img_name):
     if len(img.shape) == 3:
         img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
     upper_region = img[0:int(img.shape[0] * UPPER_RATIO), :]
     upper_region_pooled = skimage.measure.block_reduce(upper_region, (POOLING_SIZE, POOLING_SIZE), np.min)
-    top_contour, successful_detection = measurement.find_lumbodorsal_bottom_1(upper_region)
+    top_contour, successful_detection = measurement.find_lumbodorsal_bottom_1(
+        upper_region, img_name)
 
     if successful_detection:
         return scale_contour(top_contour)
@@ -421,9 +423,7 @@ if __name__ == '__main__':
                 point_of_interest_index = find_point_of_interest_2(top_contour_spine, img_gray)
 
                 point_of_interest = top_contour_spine[point_of_interest_index]
-                print(shorter_img_name)
-                top_contour = find_top_contour(img_gray)
-
+                top_contour = find_top_contour(img_gray, shorter_img_name)
                 top_contour_filled = measurement.fill_contour(top_contour)
                 distance_p = measurement.findDistance(point_of_interest, top_contour_filled)
                 scale_cm_p = scale_calculation(img_bgr)
