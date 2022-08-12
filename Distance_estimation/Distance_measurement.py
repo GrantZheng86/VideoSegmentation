@@ -1,3 +1,5 @@
+import os
+
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
@@ -266,7 +268,12 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
 
     return largest_contour, successful_detection
 
+
 def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
+    marked_frame_path = r'C:\Users\Grant\Downloads\marked_frame (1)\marked_frame'
+    marked_frame_name = os.path.join(marked_frame_path, figure_name)
+    marked_frame = cv2.imread(marked_frame_name)
+
     successful_detection = False
     kernel_size = 25
     if len(top_portion.shape) == 3:
@@ -280,10 +287,11 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     sobely *= 255
     sobely = np.array(sobely, dtype=np.uint8)
 
-    sobely_edge = cv2.Canny(sobely, 50, 210)
+    sobely_edge = cv2.Canny(sobely, 20, 200)
     dilation_kernel = np.ones((3, 3), np.uint8)
-    dilation_kernel = np.array([[1, 1, 1, 1, 1, 1, 1, 1]], dtype=np.uint8)
+    dilation_kernel = np.array([[1, 1, 1, 1, 1, 1]], dtype=np.uint8)
     dilated_edge = cv2.dilate(sobely_edge, dilation_kernel, iterations=1)
+    dilated_edge = cv2.erode(dilated_edge, dilation_kernel)
     # dilated_edge_edge = cv2.Canny(dilated_edge, 50, 210)
     # stats includes [top, left, width, height, area]
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(dilated_edge, connectivity=8)
@@ -291,17 +299,69 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     plt.subplot(2, 2, 1), plt.imshow(top_portion, cmap='gray')
     plt.subplot(2, 2, 2), plt.imshow(sobely)
     dilated_edge = cv2.cvtColor(dilated_edge, cv2.COLOR_GRAY2BGR)
-    dilated_edge = cv2.line(dilated_edge, (top_boundary[0], 0), (bottom_boundary[0],top_portion.shape[0]), (0, 0, 255), 2)
+
+    dilated_edge = cv2.line(dilated_edge, (top_boundary[0], 0), (bottom_boundary[0], top_portion.shape[0]), (0, 0, 0),
+                            16)
+    dilated_edge = cv2.line(dilated_edge, (top_boundary[1], 0), (bottom_boundary[1], top_portion.shape[0]), (0, 0, 0),
+                            16)
+
+    dilated_edge_bw = cv2.cvtColor(dilated_edge, cv2.COLOR_BGR2GRAY)
+
+    dilated_edge = cv2.line(dilated_edge, (top_boundary[0], 0), (bottom_boundary[0], top_portion.shape[0]), (255, 0, 0),
+                            2)
+    dilated_edge = cv2.line(dilated_edge, (top_boundary[1], 0), (bottom_boundary[1], top_portion.shape[0]), (255, 0, 0),
+                            2)
     plt.subplot(2, 2, 3), plt.imshow(dilated_edge, cmap='gray')
+    connected_lines = splitting_lines(dilated_edge_bw, kernel_size=5)
 
 
-
-
+    plt.subplot(2, 2, 4), plt.imshow(connected_lines, cmap='gray')
 
     plt.title(figure_name)
     figManager = plt.get_current_fig_manager()
     figManager.window.showMaximized()
     plt.show()
+
+
+def splitting_lines(edge_img, kernel_size=5):
+    """
+    This function will mark the lines that should not be connected together
+    :param kernel_size:
+    :param normalized_img:
+    :return:
+    """
+
+    r, c = edge_img.shape
+    r_lim = r-2
+    c_lim = c-2
+
+    center_offset = int(np.floor(kernel_size/2))
+    line_stick_marking = np.zeros_like(edge_img)
+
+    for i in range(r_lim):
+        for j in range(c_lim):
+
+            sub_region = edge_img[i:i+kernel_size, j:j+kernel_size]
+            center_pixel = sub_region[center_offset, center_offset]
+
+            if center_pixel != 0:
+                num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(sub_region, connectivity=8)
+                center_pixel_label = labels[center_offset, center_offset]
+                same_labelled_img = labels == center_pixel_label
+
+                q1_exist = np.sum(same_labelled_img[0:center_offset, kernel_size-center_offset:kernel_size]) > 0
+                q2_exist = np.sum(same_labelled_img[0:center_offset, 0:center_offset]) > 0
+                q3_exist = np.sum(same_labelled_img[kernel_size-center_offset:kernel_size, 0:center_offset]) > 0
+                q4_exist = np.sum(same_labelled_img[kernel_size-center_offset:kernel_size, kernel_size-center_offset:kernel_size]) > 0
+
+                if q1_exist and q4_exist:
+                    line_stick_marking[i+center_offset, j+center_offset] = 1
+                elif q2_exist and q3_exist:
+                    line_stick_marking[i+center_offset, j+center_offset] = 1
+
+    points_to_remove = np.array(1-line_stick_marking, dtype=np.uint8)
+
+    return np.array(cv2.bitwise_and(edge_img, points_to_remove)*255, dtype=np.uint8)
 
 
 def ultrasound_boundary(img):
@@ -318,22 +378,28 @@ def ultrasound_boundary(img):
     kernel = np.ones((5, 5), dtype=np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
 
+    r, c = thresh.shape
+
     top_row = thresh[0, :]
+    mid_row = thresh[int(r / 2), :]
     bottom_row = thresh[-1, :]
 
     top_row_start = np.where(top_row == 255)[0][0]
     top_row_end = np.where(top_row == 255)[0][-1]
 
-    bottom_row_start = np.where(bottom_row == 255)[0][0]
-    bottom_row_end = np.where(bottom_row == 255)[0][-1]
+    mid_row_start = np.where(mid_row == 255)[0][0]
+    mid_row_end = np.where(mid_row == 255)[0][-1]
+
+    left_fit = np.poly1d(np.polyfit([0, int(r / 2)], [top_row_start, mid_row_start], 1))
+    right_fit = np.poly1d(np.polyfit([0, int(r / 2)], [top_row_end, mid_row_end], 1))
+
+    bottom_row_start = int(left_fit(r))
+    bottom_row_end = int(right_fit(r))
+
+    # bottom_row_start = np.where(bottom_row == 255)[0][0]
+    # bottom_row_end = np.where(bottom_row == 255)[0][-1]
 
     return (top_row_start, top_row_end), (bottom_row_start, bottom_row_end)
-
-
-
-
-
-
 
 
 def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False, bottom_percentile=BOTTOM_PERCENTILE):
@@ -358,7 +424,7 @@ def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False
     if reduction:
         largest_contour = contour_reduction(contours[largest_contour_index])
     else:
-        largest_contour= get_bottom_half(contours[largest_contour_index])
+        largest_contour = get_bottom_half(contours[largest_contour_index])
 
     largest_contour[:, 1] += h
     if show:
@@ -368,5 +434,3 @@ def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False
         cv2.destroyAllWindows()
 
     return largest_contour, h
-
-
