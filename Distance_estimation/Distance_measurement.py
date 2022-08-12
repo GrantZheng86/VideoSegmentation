@@ -272,6 +272,8 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     if len(top_portion.shape) == 3:
         top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
 
+    top_boundary, bottom_boundary = ultrasound_boundary(top_portion)
+
     sobely = cv2.Sobel(top_portion, cv2.CV_64F, 0, 1, ksize=kernel_size)
     sobely -= sobely.min()
     sobely /= sobely.max()
@@ -279,31 +281,54 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     sobely = np.array(sobely, dtype=np.uint8)
 
     sobely_edge = cv2.Canny(sobely, 50, 210)
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(sobely, connectivity=8)
-    plt.subplot(1, 3, 1), plt.imshow(top_portion, cmap='gray')
-    plt.subplot(1, 3, 2), plt.imshow(sobely)
-    plt.subplot(1, 3, 3), plt.imshow(sobely_edge, cmap='gray')
+    dilation_kernel = np.ones((3, 3), np.uint8)
+    dilation_kernel = np.array([[1, 1, 1, 1, 1, 1, 1, 1]], dtype=np.uint8)
+    dilated_edge = cv2.dilate(sobely_edge, dilation_kernel, iterations=1)
+    # dilated_edge_edge = cv2.Canny(dilated_edge, 50, 210)
+    # stats includes [top, left, width, height, area]
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(dilated_edge, connectivity=8)
 
-    minLineLength = 2
-    maxLineGap = 5
-    lines = cv2.HoughLinesP(sobely_edge, cv2.HOUGH_PROBABILISTIC, np.pi / 180, 2, minLineLength, maxLineGap)
+    plt.subplot(2, 2, 1), plt.imshow(top_portion, cmap='gray')
+    plt.subplot(2, 2, 2), plt.imshow(sobely)
+    dilated_edge = cv2.cvtColor(dilated_edge, cv2.COLOR_GRAY2BGR)
+    dilated_edge = cv2.line(dilated_edge, (top_boundary[0], 0), (bottom_boundary[0],top_portion.shape[0]), (0, 0, 255), 2)
+    plt.subplot(2, 2, 3), plt.imshow(dilated_edge, cmap='gray')
 
-    top_color = cv2.cvtColor(top_portion, cv2.COLOR_GRAY2BGR)
-    for x in range(0, len(lines)):
-        for x1, y1, x2, y2 in lines[x]:
-            # cv2.line(inputImage,(x1,y1),(x2,y2),(0,128,0),2, cv2.LINE_AA)
-            pts = np.array([[x1, y1], [x2, y2]], np.int32)
-            top_color = cv2.polylines(top_color, [pts], True, (0, 255, 0))
 
-    cv2.imshow('Line_seg', top_color)
-    cv2.waitKey(0)
-    cv2.destoryAllWindows()
+
 
 
     plt.title(figure_name)
     figManager = plt.get_current_fig_manager()
     figManager.window.showMaximized()
     plt.show()
+
+
+def ultrasound_boundary(img):
+    """
+    Finds the bounding shape for the ultrasound image
+    :param img:
+    :return:
+    """
+    if len(img.shape) == 3:
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    ret, thresh = cv2.threshold(img, 1, 255, cv2.THRESH_BINARY)
+
+    kernel = np.ones((5, 5), dtype=np.uint8)
+    thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel)
+
+    top_row = thresh[0, :]
+    bottom_row = thresh[-1, :]
+
+    top_row_start = np.where(top_row == 255)[0][0]
+    top_row_end = np.where(top_row == 255)[0][-1]
+
+    bottom_row_start = np.where(bottom_row == 255)[0][0]
+    bottom_row_end = np.where(bottom_row == 255)[0][-1]
+
+    return (top_row_start, top_row_end), (bottom_row_start, bottom_row_end)
+
 
 
 
