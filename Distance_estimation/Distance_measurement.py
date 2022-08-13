@@ -269,6 +269,7 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     return largest_contour, successful_detection
 
 
+
 def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     marked_frame_path = r'C:\Users\Grant\Downloads\marked_frame (1)\marked_frame'
     marked_frame_name = os.path.join(marked_frame_path, figure_name)
@@ -288,13 +289,12 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     sobely = np.array(sobely, dtype=np.uint8)
 
     sobely_edge = cv2.Canny(sobely, 20, 200)
-    dilation_kernel = np.ones((3, 3), np.uint8)
     dilation_kernel = np.array([[1, 1, 1, 1, 1, 1]], dtype=np.uint8)
     dilated_edge = cv2.dilate(sobely_edge, dilation_kernel, iterations=1)
     dilated_edge = cv2.erode(dilated_edge, dilation_kernel)
     # dilated_edge_edge = cv2.Canny(dilated_edge, 50, 210)
     # stats includes [top, left, width, height, area]
-    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(dilated_edge, connectivity=8)
+
 
     plt.subplot(2, 2, 1), plt.imshow(top_portion, cmap='gray')
     plt.subplot(2, 2, 2), plt.imshow(sobely)
@@ -316,16 +316,24 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
 
 
     plt.subplot(2, 2, 4), plt.imshow(connected_lines, cmap='gray')
+    #
 
     plt.title(figure_name)
     figManager = plt.get_current_fig_manager()
     figManager.window.showMaximized()
     plt.show()
 
+def area_average_intensity(gray_img, height, boundary_equation):
+    r, c = gray_img.shape
+
+    iterations = np.floor(r / height)
+
+
 
 def splitting_lines(edge_img, kernel_size=5):
     """
-    This function will mark the lines that should not be connected together
+    This function will mark the lines that should not be connected together, and also filters out lines stretches too
+    far vertically
     :param kernel_size:
     :param normalized_img:
     :return:
@@ -360,8 +368,28 @@ def splitting_lines(edge_img, kernel_size=5):
                     line_stick_marking[i+center_offset, j+center_offset] = 1
 
     points_to_remove = np.array(1-line_stick_marking, dtype=np.uint8)
+    splitted_lines = np.array(cv2.bitwise_and(edge_img, points_to_remove)*255, dtype=np.uint8)
 
-    return np.array(cv2.bitwise_and(edge_img, points_to_remove)*255, dtype=np.uint8)
+    num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(splitted_lines, connectivity=8)
+    area_threshold = 20
+    aspect_ratio_threshold = 8
+
+    filtered_image = np.zeros_like(labels, dtype=np.uint8)
+    for i in range(num_labels - 1):
+        curr_area = stats[i+1, -1]
+        curr_width = stats[i+1, 2]
+        curr_height = stats[i+1, 3]
+
+        aspect_ratio = curr_width / curr_height
+
+        if curr_area > area_threshold and aspect_ratio > aspect_ratio_threshold:
+            curr_mask = labels == (i+1)
+            curr_mask = np.array(curr_mask, dtype=np.uint8)
+            filtered_image = cv2.bitwise_or(filtered_image, curr_mask)
+
+
+
+    return filtered_image
 
 
 def ultrasound_boundary(img):

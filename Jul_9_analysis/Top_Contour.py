@@ -3,7 +3,7 @@ import cv2
 import matplotlib.pyplot as plt
 
 class TopContourEdges:
-    def __init__(self, cv_ccs):
+    def __init__(self, ):
         """
         The class is for taking relative position information for each edge in the image
 
