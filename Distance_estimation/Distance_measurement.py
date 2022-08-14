@@ -269,7 +269,6 @@ def find_lumbodorsal_bottom(top_portion, reduction=True, imshow=False):
     return largest_contour, successful_detection
 
 
-
 def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     marked_frame_path = r'C:\Users\Grant\Downloads\marked_frame (1)\marked_frame'
     marked_frame_name = os.path.join(marked_frame_path, figure_name)
@@ -280,7 +279,8 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     if len(top_portion.shape) == 3:
         top_portion = cv2.cvtColor(top_portion, cv2.COLOR_BGR2GRAY)
 
-    top_boundary, bottom_boundary = ultrasound_boundary(top_portion)
+    top_boundary, bottom_boundary, left_fit, right_fit = ultrasound_boundary(top_portion)
+
 
     sobely = cv2.Sobel(top_portion, cv2.CV_64F, 0, 1, ksize=kernel_size)
     sobely -= sobely.min()
@@ -294,7 +294,6 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     dilated_edge = cv2.erode(dilated_edge, dilation_kernel)
     # dilated_edge_edge = cv2.Canny(dilated_edge, 50, 210)
     # stats includes [top, left, width, height, area]
-
 
     plt.subplot(2, 2, 1), plt.imshow(top_portion, cmap='gray')
     plt.subplot(2, 2, 2), plt.imshow(sobely)
@@ -314,21 +313,56 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     plt.subplot(2, 2, 3), plt.imshow(dilated_edge, cmap='gray')
     connected_lines = splitting_lines(dilated_edge_bw, kernel_size=5)
 
+    connected_lines = cv2.cvtColor(connected_lines, cv2.COLOR_GRAY2BGR)
+    average_intensity_dictionary = area_average_intensity(top_portion, 10, left_fit, right_fit)
+    region_start = list(average_intensity_dictionary.keys())[-1]
+    connected_lines = cv2.line(connected_lines, (0, region_start), (100, region_start), (255, 0, 0), 2)
 
     plt.subplot(2, 2, 4), plt.imshow(connected_lines, cmap='gray')
     #
+
 
     plt.title(figure_name)
     figManager = plt.get_current_fig_manager()
     figManager.window.showMaximized()
     plt.show()
 
-def area_average_intensity(gray_img, height, boundary_equation):
+
+def area_average_intensity(gray_img, height, left_eq, right_eq):
+    """
+    Finds the segment average intensity and build a dictionary from it. In most of the case, boundary reside in the
+    brightest regions
+
+    ** Potentially add moving window overlap to it
+    :param gray_img:
+    :param height:
+    :param left_eq:
+    :param right_eq:
+    :return:
+    """
     r, c = gray_img.shape
 
     iterations = np.floor(r / height)
+    intensity_dictionary = {}
 
+    for i in range(int(iterations)):
+        start_layer = height * i
+        layer_average_intensity_list = []
+        for j in range(height):
+            curr_layer = start_layer + j
+            layer_left_bound = int(np.round(left_eq(curr_layer)))
+            layer_right_bound = int(np.round(right_eq(curr_layer)))
+            valid_pixels = gray_img[curr_layer, layer_left_bound:layer_right_bound]
+            layer_average_intensity = np.average(valid_pixels)
+            layer_average_intensity_list.append(layer_average_intensity)
 
+        segment_average_intensity = np.average(layer_average_intensity_list)
+        intensity_dictionary[i * height] = segment_average_intensity
+
+    intensity_list = sorted(intensity_dictionary.items(), key=lambda x: x[1])
+    sorted_intensity_dict = dict(intensity_list)
+
+    return sorted_intensity_dict
 
 def splitting_lines(edge_img, kernel_size=5):
     """
@@ -340,16 +374,16 @@ def splitting_lines(edge_img, kernel_size=5):
     """
 
     r, c = edge_img.shape
-    r_lim = r-2
-    c_lim = c-2
+    r_lim = r - 2
+    c_lim = c - 2
 
-    center_offset = int(np.floor(kernel_size/2))
+    center_offset = int(np.floor(kernel_size / 2))
     line_stick_marking = np.zeros_like(edge_img)
 
     for i in range(r_lim):
         for j in range(c_lim):
 
-            sub_region = edge_img[i:i+kernel_size, j:j+kernel_size]
+            sub_region = edge_img[i:i + kernel_size, j:j + kernel_size]
             center_pixel = sub_region[center_offset, center_offset]
 
             if center_pixel != 0:
@@ -357,18 +391,19 @@ def splitting_lines(edge_img, kernel_size=5):
                 center_pixel_label = labels[center_offset, center_offset]
                 same_labelled_img = labels == center_pixel_label
 
-                q1_exist = np.sum(same_labelled_img[0:center_offset, kernel_size-center_offset:kernel_size]) > 0
+                q1_exist = np.sum(same_labelled_img[0:center_offset, kernel_size - center_offset:kernel_size]) > 0
                 q2_exist = np.sum(same_labelled_img[0:center_offset, 0:center_offset]) > 0
-                q3_exist = np.sum(same_labelled_img[kernel_size-center_offset:kernel_size, 0:center_offset]) > 0
-                q4_exist = np.sum(same_labelled_img[kernel_size-center_offset:kernel_size, kernel_size-center_offset:kernel_size]) > 0
+                q3_exist = np.sum(same_labelled_img[kernel_size - center_offset:kernel_size, 0:center_offset]) > 0
+                q4_exist = np.sum(same_labelled_img[kernel_size - center_offset:kernel_size,
+                                  kernel_size - center_offset:kernel_size]) > 0
 
                 if q1_exist and q4_exist:
-                    line_stick_marking[i+center_offset, j+center_offset] = 1
+                    line_stick_marking[i + center_offset, j + center_offset] = 1
                 elif q2_exist and q3_exist:
-                    line_stick_marking[i+center_offset, j+center_offset] = 1
+                    line_stick_marking[i + center_offset, j + center_offset] = 1
 
-    points_to_remove = np.array(1-line_stick_marking, dtype=np.uint8)
-    splitted_lines = np.array(cv2.bitwise_and(edge_img, points_to_remove)*255, dtype=np.uint8)
+    points_to_remove = np.array(1 - line_stick_marking, dtype=np.uint8)
+    splitted_lines = np.array(cv2.bitwise_and(edge_img, points_to_remove) * 255, dtype=np.uint8)
 
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(splitted_lines, connectivity=8)
     area_threshold = 20
@@ -376,18 +411,16 @@ def splitting_lines(edge_img, kernel_size=5):
 
     filtered_image = np.zeros_like(labels, dtype=np.uint8)
     for i in range(num_labels - 1):
-        curr_area = stats[i+1, -1]
-        curr_width = stats[i+1, 2]
-        curr_height = stats[i+1, 3]
+        curr_area = stats[i + 1, -1]
+        curr_width = stats[i + 1, 2]
+        curr_height = stats[i + 1, 3]
 
         aspect_ratio = curr_width / curr_height
 
         if curr_area > area_threshold and aspect_ratio > aspect_ratio_threshold:
-            curr_mask = labels == (i+1)
+            curr_mask = labels == (i + 1)
             curr_mask = np.array(curr_mask, dtype=np.uint8)
             filtered_image = cv2.bitwise_or(filtered_image, curr_mask)
-
-
 
     return filtered_image
 
@@ -427,7 +460,7 @@ def ultrasound_boundary(img):
     # bottom_row_start = np.where(bottom_row == 255)[0][0]
     # bottom_row_end = np.where(bottom_row == 255)[0][-1]
 
-    return (top_row_start, top_row_end), (bottom_row_start, bottom_row_end)
+    return (top_row_start, top_row_end), (bottom_row_start, bottom_row_end), left_fit, right_fit
 
 
 def get_bottom_contour(img, reduction=True, bottom_feature_ratio=1.7, show=False, bottom_percentile=BOTTOM_PERCENTILE):
