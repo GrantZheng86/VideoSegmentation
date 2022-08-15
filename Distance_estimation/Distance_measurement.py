@@ -281,7 +281,6 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
 
     top_boundary, bottom_boundary, left_fit, right_fit = ultrasound_boundary(top_portion)
 
-
     sobely = cv2.Sobel(top_portion, cv2.CV_64F, 0, 1, ksize=kernel_size)
     sobely -= sobely.min()
     sobely /= sobely.max()
@@ -313,27 +312,32 @@ def find_lumbodorsal_bottom_1(top_portion, figure_name, imshow=False):
     plt.subplot(2, 2, 3), plt.imshow(dilated_edge, cmap='gray')
     connected_lines = splitting_lines(dilated_edge_bw, kernel_size=5)
 
-    connected_lines = cv2.cvtColor(connected_lines, cv2.COLOR_GRAY2BGR)
-    average_intensity_dictionary = area_average_intensity(top_portion, 10, left_fit, right_fit)
+    connected_lines = cv2.cvtColor(np.array(connected_lines * 255, dtype=np.uint8), cv2.COLOR_GRAY2BGR)
+    region_height = 100
+    average_intensity_dictionary = area_average_intensity(top_portion, region_height, 10, left_fit, right_fit)
     region_start = list(average_intensity_dictionary.keys())[-1]
-    connected_lines = cv2.line(connected_lines, (0, region_start), (100, region_start), (255, 0, 0), 2)
+    region_end = region_start + region_height
+    connected_lines = cv2.line(connected_lines, (0, region_start), (400, region_start), (255, 0, 0), 2)
+    connected_lines = cv2.line(connected_lines, (0, region_end), (400, region_end), (255, 0, 0), 2)
 
-    plt.subplot(2, 2, 4), plt.imshow(connected_lines, cmap='gray')
+    plt.subplot(2, 2, 4), plt.imshow(connected_lines)
     #
 
-
     plt.title(figure_name)
-    figManager = plt.get_current_fig_manager()
-    figManager.window.showMaximized()
-    plt.show()
+
+    # figManager = plt.get_current_fig_manager()
+    # figManager.window.showMaximized()
+    plt.savefig(os.path.join(r"C:\Users\Grant\Downloads\marked_frame\marked_frame\Segmentation Analysis", figure_name))
+    # plt.show()
 
 
-def area_average_intensity(gray_img, height, left_eq, right_eq):
+def area_average_intensity(gray_img, height, moving_distance, left_eq, right_eq):
     """
     Finds the segment average intensity and build a dictionary from it. In most of the case, boundary reside in the
     brightest regions
 
     ** Potentially add moving window overlap to it
+    :param moving_distance:
     :param gray_img:
     :param height:
     :param left_eq:
@@ -342,11 +346,11 @@ def area_average_intensity(gray_img, height, left_eq, right_eq):
     """
     r, c = gray_img.shape
 
-    iterations = np.floor(r / height)
+    iterations = np.floor((r - height) / moving_distance)
     intensity_dictionary = {}
 
     for i in range(int(iterations)):
-        start_layer = height * i
+        start_layer = i * moving_distance
         layer_average_intensity_list = []
         for j in range(height):
             curr_layer = start_layer + j
@@ -357,12 +361,13 @@ def area_average_intensity(gray_img, height, left_eq, right_eq):
             layer_average_intensity_list.append(layer_average_intensity)
 
         segment_average_intensity = np.average(layer_average_intensity_list)
-        intensity_dictionary[i * height] = segment_average_intensity
+        intensity_dictionary[start_layer] = segment_average_intensity
 
     intensity_list = sorted(intensity_dictionary.items(), key=lambda x: x[1])
     sorted_intensity_dict = dict(intensity_list)
 
     return sorted_intensity_dict
+
 
 def splitting_lines(edge_img, kernel_size=5):
     """
@@ -407,7 +412,7 @@ def splitting_lines(edge_img, kernel_size=5):
 
     num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(splitted_lines, connectivity=8)
     area_threshold = 20
-    aspect_ratio_threshold = 8
+    aspect_ratio_threshold = 1
 
     filtered_image = np.zeros_like(labels, dtype=np.uint8)
     for i in range(num_labels - 1):
